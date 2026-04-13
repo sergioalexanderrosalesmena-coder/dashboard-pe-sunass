@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seguimiento_problemas_servicio</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b1524;--surface:#111f35;--border:#1e3a5f;
+  --accent:#00b4d8;--warn:#f77f00;--text:#e0eaf5;
+  --muted:#7a9bbf;--node-bg:#0d1e33;--ok:#2ec4b6;--danger:#ff6464;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;}
+
+/* ── HEADER ── */
+header{background:linear-gradient(135deg,#0d2240,#091729);border-bottom:1px solid var(--border);padding:18px 32px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100;box-shadow:0 4px 24px rgba(0,0,0,.4);}
+.header-icon{width:40px;height:40px;background:var(--warn);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:19px;box-shadow:0 0 18px rgba(247,127,0,.4);flex-shrink:0;}
+.header-text h1{font-size:15px;font-weight:700;color:#fff;}
+.header-text p{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px;}
+.header-actions{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.badge{background:rgba(247,127,0,.12);border:1px solid rgba(247,127,0,.3);color:var(--warn);font-size:11px;font-family:'DM Mono',monospace;padding:5px 12px;border-radius:20px;}
+.cfg-btn{background:rgba(46,196,182,.1);border:1px solid rgba(46,196,182,.3);color:var(--ok);font-size:11px;font-family:'DM Mono',monospace;padding:6px 14px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:background .2s;white-space:nowrap;}
+.cfg-btn:hover{background:rgba(46,196,182,.22);}
+.cfg-btn.connected{background:rgba(46,196,182,.18);border-color:rgba(46,196,182,.5);}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px);}
+.modal-overlay.hidden{display:none;}
+.modal-box{background:#0d1e33;border:1px solid var(--border);border-radius:16px;max-width:740px;width:100%;max-height:90vh;overflow-y:auto;padding:28px 30px;}
+.modal-title{font-size:17px;font-weight:700;color:#fff;margin-bottom:4px;display:flex;align-items:center;gap:10px;}
+.modal-sub{font-size:12px;color:var(--muted);margin-bottom:20px;line-height:1.6;}
+.modal-step{margin-bottom:20px;}
+.modal-step-num{font-size:10px;font-family:'DM Mono',monospace;letter-spacing:.12em;color:var(--accent);text-transform:uppercase;margin-bottom:8px;}
+.code-block{background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:14px;font-family:'DM Mono',monospace;font-size:11px;color:#a8d4e8;line-height:1.7;white-space:pre;overflow-x:auto;position:relative;}
+.code-copy-btn{position:absolute;top:8px;right:8px;background:rgba(0,180,216,.12);border:1px solid rgba(0,180,216,.3);color:var(--accent);font-size:10px;font-family:'DM Mono',monospace;padding:3px 10px;border-radius:5px;cursor:pointer;}
+.code-copy-btn:hover{background:rgba(0,180,216,.25);}
+.modal-input-row{display:flex;gap:10px;margin-top:10px;}
+.modal-input{flex:1;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:8px;padding:9px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;transition:border-color .2s;}
+.modal-input:focus{border-color:var(--accent);}
+.modal-input::placeholder{color:var(--muted);}
+.modal-save-btn{background:var(--accent);border:none;color:#fff;font-family:'DM Mono',monospace;font-size:12px;padding:9px 18px;border-radius:8px;cursor:pointer;transition:opacity .2s;white-space:nowrap;}
+.modal-save-btn:hover{opacity:.85;}
+.modal-close-btn{margin-top:20px;width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;padding:10px;border-radius:8px;cursor:pointer;transition:background .2s;}
+.modal-close-btn:hover{background:rgba(255,255,255,.08);}
+.connection-status{display:flex;align-items:center;gap:8px;font-size:12px;margin-top:10px;padding:10px 14px;border-radius:8px;}
+.connection-status.ok{background:rgba(46,196,182,.08);border:1px solid rgba(46,196,182,.2);color:var(--ok);}
+.connection-status.none{background:rgba(255,100,100,.06);border:1px solid rgba(255,100,100,.15);color:#ff9999;}
+.conn-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+
+/* ── WRAPPER ── */
+.wrapper{max-width:1300px;margin:0 auto;padding:36px 24px 60px;}
+
+.root-node{background:linear-gradient(135deg,#2a0a00,#1a0500);border:2px solid var(--warn);border-radius:16px;padding:22px 32px;text-align:center;max-width:520px;margin:0 auto;box-shadow:0 0 40px rgba(247,127,0,.2);animation:fadeDown .5s ease both;position:relative;}
+.root-node::after{content:'';position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);width:2px;height:20px;background:linear-gradient(to bottom,var(--warn),transparent);}
+.root-node .label{font-size:10px;font-family:'DM Mono',monospace;color:var(--warn);letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px;}
+.root-node h2{font-size:21px;font-weight:700;color:#fff;line-height:1.3;}
+.root-node p{font-size:12px;color:var(--muted);margin-top:8px;}
+
+.question-box{background:var(--surface);border:1px solid var(--border);border-top:3px solid var(--warn);border-radius:12px;padding:14px 24px;text-align:center;max-width:440px;margin:20px auto 0;animation:fadeDown .5s .1s ease both;opacity:0;}
+.question-box p{font-size:14px;font-weight:600;color:var(--warn);display:flex;align-items:center;justify-content:center;gap:8px;}
+.connector-v{width:2px;height:20px;background:linear-gradient(to bottom,var(--warn),var(--border));margin:0 auto;animation:fadeIn .4s .15s ease both;opacity:0;}
+
+/* ── GRID & CARDS ── */
+.causes-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:0;animation:fadeUp .5s .2s ease both;opacity:0;}
+.cause-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:border-color .2s,box-shadow .2s;}
+.cause-header{padding:16px 18px;display:flex;align-items:flex-start;gap:12px;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;transition:background .15s;}
+.cause-header:hover{background:rgba(255,255,255,.03);}
+.cause-num{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:13px;font-weight:500;flex-shrink:0;margin-top:2px;}
+.cause-title{font-size:14px;font-weight:600;line-height:1.4;color:#fff;flex:1;}
+.cause-subtitle{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.4;}
+.cause-arrow{font-size:14px;transition:transform .3s;color:var(--muted);flex-shrink:0;margin-top:4px;}
+.cause-card.active .cause-arrow{transform:rotate(180deg);}
+.actor-tag{padding:8px 18px;font-size:11px;font-family:'DM Mono',monospace;color:var(--muted);display:flex;align-items:center;gap:6px;}
+.actor-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+
+.detail-panel{display:none;}
+.cause-card.active .detail-panel{display:block;animation:slideDown .3s ease;}
+.detail-inner{padding:18px 18px 20px;border-top:1px solid var(--border);background:var(--node-bg);display:flex;flex-direction:column;gap:16px;}
+.detail-label{font-size:10px;font-family:'DM Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.detail-label::before{content:'';width:16px;height:1px;background:var(--muted);}
+.detail-text{font-size:12.5px;line-height:1.7;color:#b8d0e8;}
+.steps-list{list-style:none;display:flex;flex-direction:column;gap:8px;}
+.steps-list li{display:flex;gap:10px;font-size:12.5px;line-height:1.6;color:#b8d0e8;}
+.step-num{width:20px;height:20px;border-radius:50%;background:rgba(0,180,216,.15);border:1px solid rgba(0,180,216,.3);color:var(--accent);font-family:'DM Mono',monospace;font-size:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;}
+.norm-ref{background:rgba(46,196,182,.07);border:1px solid rgba(46,196,182,.2);border-radius:8px;padding:10px 12px;font-size:12px;color:#7dd9d0;display:flex;gap:8px;align-items:flex-start;}
+.norm-ref>span{font-size:14px;flex-shrink:0;}
+.urgency-tag{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-family:'DM Mono',monospace;padding:4px 10px;border-radius:20px;margin-bottom:6px;}
+.urgency-critical{background:rgba(255,100,100,.12);border:1px solid rgba(255,100,100,.3);color:#ff8888;}
+.urgency-high{background:rgba(247,127,0,.12);border:1px solid rgba(247,127,0,.3);color:#f7a050;}
+.urgency-normal{background:rgba(0,180,216,.12);border:1px solid rgba(0,180,216,.3);color:var(--accent);}
+
+/* ── RESPONSABLE BANNER ── */
+.responsable-banner{background:linear-gradient(135deg,rgba(255,140,0,.13),rgba(255,80,0,.07));border:1.5px solid rgba(255,140,0,.45);border-radius:10px;padding:12px 16px;display:flex;align-items:flex-start;gap:12px;}
+.responsable-icon{font-size:22px;flex-shrink:0;line-height:1;margin-top:2px;}
+.responsable-body{flex:1;}
+.responsable-title{font-size:10px;font-family:'DM Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#ffaa44;margin-bottom:5px;}
+.responsable-name{font-size:14px;font-weight:700;color:#fff;margin-bottom:3px;}
+.responsable-desc{font-size:11.5px;color:#c8a87a;line-height:1.5;}
+
+/* ── EMAIL ── */
+.email-wrapper{background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.07);border-radius:10px;overflow:hidden;}
+.email-topbar{background:rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.07);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.email-topbar-left{display:flex;align-items:center;gap:8px;font-size:11px;font-family:'DM Mono',monospace;color:var(--muted);}
+.copy-btn{background:rgba(0,180,216,.12);border:1px solid rgba(0,180,216,.3);color:var(--accent);font-size:11px;font-family:'DM Mono',monospace;padding:5px 12px;border-radius:6px;cursor:pointer;transition:background .2s;display:flex;align-items:center;gap:5px;white-space:nowrap;flex-shrink:0;}
+.copy-btn:hover{background:rgba(0,180,216,.25);}
+.copy-btn.copied{background:rgba(46,196,182,.2);border-color:rgba(46,196,182,.4);color:#2ec4b6;}
+.copy-btn.err{background:rgba(255,100,100,.15);border-color:rgba(255,100,100,.4);color:#ff8888;}
+.email-meta{padding:12px 14px 10px;display:flex;flex-direction:column;gap:4px;border-bottom:1px solid rgba(255,255,255,.05);}
+.email-meta-row{display:flex;gap:8px;font-size:12px;}
+.email-meta-key{color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;min-width:68px;padding-top:1px;}
+.email-meta-val{color:#c8dff2;font-weight:500;}
+.email-subject-val{color:#e8f2fc;font-weight:600;}
+.ph{background:rgba(247,127,0,.15);border:1px solid rgba(247,127,0,.3);border-radius:4px;padding:0 4px;color:#f7c06a;font-family:'DM Mono',monospace;font-size:11px;}
+.email-body{padding:14px;font-size:12.5px;line-height:1.85;color:#b8d0e8;white-space:pre-wrap;font-family:'DM Sans',sans-serif;}
+
+/* ── SEGUIMIENTO ── */
+.seguimiento-block{background:rgba(0,180,216,.04);border:1px solid rgba(0,180,216,.18);border-radius:10px;padding:14px 16px;}
+.seguimiento-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.seg-title{font-size:10px;font-family:'DM Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);display:flex;align-items:center;gap:6px;}
+.seg-status-badge{font-size:10px;font-family:'DM Mono',monospace;padding:3px 10px;border-radius:20px;border:1px solid;font-weight:600;transition:all .3s;}
+.seg-status-badge.pending{background:rgba(255,195,0,.1);border-color:rgba(255,195,0,.35);color:#ffc300;}
+.seg-status-badge.sent{background:rgba(0,180,216,.1);border-color:rgba(0,180,216,.35);color:var(--accent);}
+.seg-status-badge.replied{background:rgba(46,196,182,.1);border-color:rgba(46,196,182,.35);color:var(--ok);}
+.seg-status-badge.overdue{background:rgba(255,100,100,.1);border-color:rgba(255,100,100,.35);color:var(--danger);}
+.seg-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+.seg-field{display:flex;flex-direction:column;gap:4px;flex:1;min-width:130px;}
+.seg-field label{font-size:10px;font-family:'DM Mono',monospace;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;}
+.seg-field select,.seg-field input[type=date],.seg-field input[type=text],.seg-field textarea{
+  background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:6px;
+  padding:7px 10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:12px;
+  outline:none;transition:border-color .2s;width:100%;
+}
+.seg-field select{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237a9bbf'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;}
+.seg-field select option{background:#0d1e33;color:var(--text);}
+.seg-field input:focus,.seg-field select:focus,.seg-field textarea:focus{border-color:var(--accent);}
+.seg-field textarea{resize:vertical;min-height:52px;}
+.seg-divider{height:1px;background:rgba(255,255,255,.06);margin:10px 0;}
+.seg-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;}
+.seg-btn{font-size:11px;font-family:'DM Mono',monospace;padding:6px 13px;border-radius:6px;border:1px solid;cursor:pointer;transition:all .2s;font-weight:500;}
+.seg-btn.mark-reset{background:rgba(255,100,100,.08);border-color:rgba(255,100,100,.25);color:#ff9999;}
+.seg-btn.mark-reset:hover{background:rgba(255,100,100,.18);}
+.seg-btn.mark-send{background:rgba(150,100,255,.12);border-color:rgba(150,100,255,.4);color:#b090ff;}
+.seg-btn.mark-send:hover{background:rgba(150,100,255,.25);}
+.seg-btn.mark-send:disabled{opacity:.5;cursor:not-allowed;}
+.seg-btn.mark-send.sending{animation:pulse .8s infinite alternate;}
+.seg-plazo-info{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:6px;margin-top:2px;}
+.seg-plazo-info .pi-dot{width:6px;height:6px;border-radius:50%;background:var(--warn);flex-shrink:0;}
+.send-feedback{font-size:11px;font-family:'DM Mono',monospace;margin-top:6px;padding:6px 10px;border-radius:6px;display:none;}
+.send-feedback.ok{background:rgba(46,196,182,.1);border:1px solid rgba(46,196,182,.3);color:var(--ok);display:block;}
+.send-feedback.err{background:rgba(255,100,100,.1);border:1px solid rgba(255,100,100,.3);color:var(--danger);display:block;}
+
+/* ── LEGEND ── */
+.legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:32px;padding-top:24px;border-top:1px solid var(--border);animation:fadeUp .5s .4s ease both;opacity:0;}
+.legend-title{width:100%;font-size:11px;font-family:'DM Mono',monospace;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px;}
+.legend-item{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:5px 12px;}
+.legend-dot{width:8px;height:8px;border-radius:50%;}
+
+/* COLOR THEMES */
+.cA .cause-num{background:rgba(255,100,100,.15);color:#ff6464}.cA .actor-dot{background:#ff6464}.cA.active{border-color:#ff6464}.cA.active .cause-arrow{color:#ff6464}
+.cB .cause-num{background:rgba(247,127,0,.15);color:#f77f00}.cB .actor-dot{background:#f77f00}.cB.active{border-color:#f77f00}.cB.active .cause-arrow{color:#f77f00}
+.cC .cause-num{background:rgba(255,195,0,.15);color:#ffc300}.cC .actor-dot{background:#ffc300}.cC.active{border-color:#ffc300}.cC.active .cause-arrow{color:#ffc300}
+.cD .cause-num{background:rgba(0,180,216,.15);color:#00b4d8}.cD .actor-dot{background:#00b4d8}.cD.active{border-color:#00b4d8}.cD.active .cause-arrow{color:#00b4d8}
+.cE .cause-num{background:rgba(150,100,255,.15);color:#9664ff}.cE .actor-dot{background:#9664ff}.cE.active{border-color:#9664ff}.cE.active .cause-arrow{color:#9664ff}
+
+@media(max-width:900px){.causes-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:580px){.causes-grid{grid-template-columns:1fr}header{padding:14px 18px}.wrapper{padding:24px 14px 48px}.badge{display:none}}
+
+@keyframes fadeDown{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{from{opacity:.7}to{opacity:1}}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════ MODAL ═══════════════════════════════════ -->
+<div class="modal-overlay hidden" id="cfgModal">
+  <div class="modal-box">
+    <div class="modal-title">⚙️ Conexión con Google Sheets</div>
+    <p class="modal-sub">Cada registro enviado desde el dashboard se guardará como una fila nueva en tu hoja de cálculo. Solo tú tendrás acceso de editor. Sigue los pasos una única vez.</p>
+    <div class="modal-step">
+      <div class="modal-step-num">PASO 1 — Crear la hoja de cálculo</div>
+      <p class="detail-text">Ve a <strong style="color:#c8dff2">sheets.google.com</strong>, crea una hoja nueva y ponle el nombre <code style="color:var(--accent);font-family:'DM Mono',monospace">Registros SUNASS</code>. Copia el ID de la URL entre <code style="color:var(--accent);font-family:'DM Mono',monospace">/d/</code> y <code style="color:var(--accent);font-family:'DM Mono',monospace">/edit</code>.</p>
+    </div>
+    <div class="modal-step">
+      <div class="modal-step-num">PASO 2 — Crear el Apps Script</div>
+      <p class="detail-text" style="margin-bottom:8px">Ve a <strong style="color:#c8dff2">Extensiones → Apps Script</strong>. Borra todo y pega el código abajo, reemplazando <code style="color:var(--accent);font-family:'DM Mono',monospace">TU_ID_AQUI</code>:</p>
+      <div class="code-block" id="appsScriptCode">function doPost(e) {
+  try {
+    var ss = SpreadsheetApp.openById('TU_ID_AQUI');
+    var sheet = ss.getSheetByName('Registros') || ss.insertSheet('Registros');
+    var data = e.parameter;
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow(['Timestamp','Oficina','Colegio / IE','N° Causa','Causa',
+                       'Actor Clave','Estado','Fecha Envío','Fecha Respuesta','Notas']);
+      sheet.getRange(1,1,1,10).setFontWeight('bold').setBackground('#1a0500').setFontColor('#ffffff');
+    }
+    sheet.appendRow([
+      Utilities.formatDate(new Date(),'America/Lima','dd/MM/yyyy HH:mm:ss'),
+      data.oficina||'', data.colegio||'', data.numCausa||'', data.causa||'',
+      data.actor||'', data.estado||'',
+      data.fechaEnvio||'', data.fechaRespuesta||'', data.notas||''
+    ]);
+    return ContentService.createTextOutput(JSON.stringify({status:'ok'}))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({status:'error',msg:err.toString()}))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+function doGet(e){ return ContentService.createTextOutput('OK'); }</div>
+      <button class="code-copy-btn" onclick="copyCode()">📋 Copiar</button>
+    </div>
+    <div class="modal-step">
+      <div class="modal-step-num">PASO 3 — Publicar como aplicación web</div>
+      <p class="detail-text">Implementar → Nueva implementación. Ejecutar como: <em>Yo</em>. Acceso: <strong style="color:#ffaa44">Cualquier persona</strong>. Copia la URL generada.</p>
+    </div>
+    <div class="modal-step">
+      <div class="modal-step-num">PASO 4 — Pegar la URL aquí</div>
+      <div class="modal-input-row">
+        <input class="modal-input" id="sheetsUrl" type="text" placeholder="https://script.google.com/macros/s/XXXXXX/exec">
+        <button class="modal-save-btn" onclick="saveUrl()">Guardar y conectar</button>
+      </div>
+      <div class="connection-status none" id="connStatus">
+        <div class="conn-dot" style="background:var(--danger)"></div>
+        <span id="connStatusText">Sin URL configurada</span>
+      </div>
+    </div>
+    <button class="modal-close-btn" onclick="closeModal()">✕ Cerrar</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ HEADER ═══════════════════════════════════ -->
+<header>
+  <div class="header-icon">🔧</div>
+  <div class="header-text">
+    <h1>Estrategia de Gestión – Problemas con el Servicio</h1>
+    <p>SEGUIMIENTO · Instituciones Educativas · SUNASS</p>
+  </div>
+  <div class="header-actions">
+    <div class="badge">5 bloques</div>
+    <button class="cfg-btn" id="cfgBtnHeader" onclick="openModal()">⚙️ Conectar Google Sheets</button>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════ MAIN ═══════════════════════════════════ -->
+<div class="wrapper">
+
+  <div class="root-node">
+    <div class="label">Situación detectada</div>
+    <h2>Problema con el servicio<br>de agua/saneamiento en la IE</h2>
+    <p>Selecciona el bloque de causa para ver el oficio listo y registrar el seguimiento</p>
+  </div>
+  <div class="question-box"><p>⚠️ ¿A qué tipo de problema corresponde?</p></div>
+  <div class="connector-v"></div>
+
+  <div class="causes-grid">
+
+  <!-- ══════════════ BLOQUE A ══════════════ -->
+  <div class="cause-card cA" id="cardA">
+    <div class="cause-header" onclick="toggleCard('cardA')">
+      <div class="cause-num">A</div>
+      <div style="flex:1">
+        <div class="cause-title">Emergencias Operativas</div>
+        <div class="cause-subtitle">Aniegos, derrames, alcantarillado</div>
+      </div>
+      <div class="cause-arrow">▼</div>
+    </div>
+    <div class="actor-tag"><div class="actor-dot"></div> Actor clave: Gerencia de Operaciones — EPS</div>
+    <div class="detail-panel"><div class="detail-inner">
+
+      <div>
+        <div class="detail-label">Responsable de envío</div>
+        <div class="responsable-banner"><div class="responsable-icon">👤</div>
+          <div class="responsable-body">
+            <div class="responsable-title">⚠ Quién debe enviar este oficio</div>
+            <div class="responsable-name">Jefe de Oficina / Jefe de ODS o OAU</div>
+            <div class="responsable-desc">Las emergencias operativas activan la obligación de respuesta inmediata del prestador. Solo la firma del Jefe de ODS o OAU sustenta un eventual procedimiento sancionador si la EPS no atiende en el plazo exigido.</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="detail-label">Criterio de identificación</div>
+        <span class="urgency-tag urgency-critical">🚨 CRÍTICO — Plazo: 4 horas</span>
+        <div class="detail-text">Detección in situ de aniego (agua o desagüe), rebose de buzón o falla activa del sistema de alcantarillado en el entorno o interior de la IE. Riesgo directo de enfermedades diarreicas agudas (EDAS) en población estudiantil. Vulneración del Reglamento de Calidad de la Prestación de los Servicios de Saneamiento.</div>
+      </div>
+
+      <div>
+        <div class="detail-label">Pasos previos al oficio</div>
+        <ul class="steps-list">
+          <li><div class="step-num">1</div><span>Documentar fotográficamente el evento in situ: punto exacto, magnitud del aniego y hora de detección.</span></li>
+          <li><div class="step-num">2</div><span>Verificar si el director de la IE ya reportó el evento al prestador. De ser así, registrar número de reporte y hora.</span></li>
+          <li><div class="step-num">3</div><span>El Jefe de Oficina envía el oficio adjuntando las fotografías como evidencia técnica.</span></li>
+        </ul>
+      </div>
+
+      <div>
+        <div class="detail-label">Oficio formal — Gerencia de Operaciones EPS</div>
+        <div class="email-wrapper">
+          <div class="email-topbar">
+            <div class="email-topbar-left"><span>📄</span> OFICIO DE EMERGENCIA</div>
+            <button class="copy-btn" onclick="doCopy(event,'ebA')">📋 Copiar oficio</button>
+          </div>
+          <div class="email-meta">
+            <div class="email-meta-row"><span class="email-meta-key">PARA:</span><span class="email-meta-val">Gerencia de Operaciones — [NOMBRE DE LA EPS]</span></div>
+            <div class="email-meta-row"><span class="email-meta-key">ASUNTO:</span><span class="email-subject-val">ALERTA DE EMERGENCIA OPERATIVA: [ANIEGO / REBOSE DE ALCANTARILLADO] EN ENTORNO DE IE <span class="ph">[NOMBRE IE]</span></span></div>
+          </div>
+          <div class="email-body" id="ebA">Estimados señores:
+
+La SUNASS, en ejercicio de sus funciones de supervisión y monitoreo de la calidad de los servicios de saneamiento, comunica con carácter de URGENCIA que el día [FECHA], a las [HORA] horas, se ha constatado un evento crítico de [DESCRIPCIÓN DEL PROBLEMA: aniego por desborde de red de alcantarillado / rebose de buzón / fuga activa de tubería de desagüe] en el [EXTERIOR / INTERIOR] de la institución educativa [NOMBRE DE LA IE], distrito de [DISTRITO], provincia de [PROVINCIA].
+
+El evento afecta directamente:
+- La transitabilidad segura del entorno del plantel, con acumulación de aguas residuales en [DESCRIBIR ZONA AFECTADA].
+- Las condiciones de salubridad de la IE, con riesgo de exposición de alumnos y personal docente a agentes patógenos presentes en aguas residuales y la consecuente generación de enfermedades diarreicas agudas (EDAS).
+- El normal desarrollo de las actividades educativas.
+
+Conforme al Reglamento de Calidad de la Prestación de los Servicios de Saneamiento, su representada tiene la obligación de atender fugas, aniegos y emergencias operativas de forma inmediata, priorizando los establecimientos de uso público como instituciones educativas.
+
+En consecuencia, se EXIGE a [NOMBRE DE LA EPS]:
+
+1. Enviar de manera INMEDIATA una cuadrilla de emergencia al punto afectado, con un tiempo máximo de llegada de 4 horas desde la recepción del presente oficio.
+
+2. Ejecutar las acciones correctivas necesarias para eliminar el aniego, restablecer el correcto funcionamiento del sistema de alcantarillado y garantizar la salubridad del entorno.
+
+3. Remitir a esta oficina el acta de intervención de emergencia, firmada por el responsable técnico, dentro de las 24 horas siguientes a la atención, consignando: hora de llegada, acciones ejecutadas y estado final del punto afectado.
+
+Se advierte expresamente que el incumplimiento del plazo establecido será considerado como agravante en el inicio del proceso sancionador correspondiente conforme al marco normativo vigente.
+
+Se adjuntan evidencias fotográficas del evento.
+
+Atentamente,
+
+[NOMBRE DEL JEFE DE OFICINA / JEFE DE ODS O OAU]
+Jefe de Oficina Desconcentrada / Oficina de Atención al Usuario
+SUNASS — Oficina de [NOMBRE DE OFICINA]
+[FECHA]</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="detail-label">Seguimiento y cierre de ciclo</div>
+        <div class="seguimiento-block">
+          <div class="seguimiento-header">
+            <div class="seg-title">📌 Estado del oficio</div>
+            <div class="seg-status-badge pending" id="badgeA">SIN ENVIAR</div>
+          </div>
+          <div class="seg-row">
+            <div class="seg-field" style="min-width:200px;flex:2">
+              <label>Oficina</label>
+              <select id="oficinaA" onclick="stopBubble(event)" onchange="updateColegios('A');stopBubble(event)"><option value="">— Seleccionar —</option></select>
+            </div>
+            <div class="seg-field" style="min-width:200px;flex:3">
+              <label>Institución Educativa</label>
+              <select id="colegioA" onclick="stopBubble(event)" onchange="stopBubble(event)"><option value="">— Selecciona oficina primero —</option></select>
+            </div>
+          </div>
+          <div class="seg-row">
+            <div class="seg-field"><label>Fecha de envío</label><input type="date" id="sentA" onclick="stopBubble(event)" onchange="updateStatus('A');stopBubble(event)"></div>
+            <div class="seg-field"><label>Plazo esperado</label><div class="seg-plazo-info"><div class="pi-dot" style="background:#ff6464"></div>4 horas (EPS — EMERGENCIA)</div></div>
+            <div class="seg-field"><label>Fecha de respuesta recibida</label><input type="date" id="replyA" onclick="stopBubble(event)" onchange="updateStatus('A');stopBubble(event)"></div>
+          </div>
+          <div class="seg-divider"></div>
+          <div class="seg-field" style="margin-bottom:10px">
+            <label>Notas de seguimiento</label>
+            <textarea id="notesA" onclick="stopBubble(event)" placeholder="Ej: EPS envió cuadrilla a las 14:30. Se constató reparación de rotura en colector principal. Acta recibida el..."></textarea>
+          </div>
+          <div class="seg-btns">
+            <button class="seg-btn mark-reset" onclick="resetStatus('A');stopBubble(event)">↺ Reiniciar</button>
+            <button class="seg-btn mark-send" id="sendbtnA" onclick="enviarRegistro('A',event)">📤 Enviar a Google Sheets</button>
+          </div>
+          <div class="send-feedback" id="sfbA"></div>
+        </div>
+      </div>
+
+    </div></div>
+  </div>
+
+  <!-- ══════════════ BLOQUE B ══════════════ -->
+  <div class="cause-card cB" id="cardB">
+    <div class="cause-header" onclick="toggleCard('cardB')">
+      <div class="cause-num">B</div>
+      <div style="flex:1">
+        <div class="cause-title">Seguridad Física</div>
+        <div class="cause-subtitle">Tapas, señalización, obras inconclusas</div>
+      </div>
+      <div class="cause-arrow">▼</div>
+    </div>
+    <div class="actor-tag"><div class="actor-dot"></div> Actor clave: Gerencia de Mantenimiento / Obras — EPS</div>
+    <div class="detail-panel"><div class="detail-inner">
+
+      <div>
+        <div class="detail-label">Responsable de envío</div>
+        <div class="responsable-banner"><div class="responsable-icon">👤</div>
+          <div class="responsable-body">
+            <div class="responsable-title">⚠ Quién debe enviar este oficio</div>
+            <div class="responsable-name">Jefe de Oficina / Jefe de ODS o OAU</div>
+            <div class="responsable-desc">El riesgo de accidente en menores de edad exige una comunicación formal con peso institucional. La firma del Jefe de ODS o OAU activa la responsabilidad legal de la EPS ante cualquier accidente que ocurra tras la notificación.</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="detail-label">Criterio de identificación</div>
+        <span class="urgency-tag urgency-high">⚠ URGENTE — Plazo: 12 horas</span>
+        <div class="detail-text">Detección de buzón de inspección sin tapa, caja de conexión domiciliaria descubierta, obra de saneamiento sin señalización de seguridad u obra abandonada sin cercado de protección en el entorno o acceso de la IE. Constituye incumplimiento de normas de seguridad y salud y riesgo inminente de caída y lesiones graves en menores.</div>
+      </div>
+
+      <div>
+        <div class="detail-label">Pasos previos al oficio</div>
+        <ul class="steps-list">
+          <li><div class="step-num">1</div><span>Fotografiar el elemento peligroso indicando su ubicación exacta respecto al ingreso o perímetro de la IE.</span></li>
+          <li><div class="step-num">2</div><span>Identificar si el activo pertenece a la EPS (buzón de colector, caja de conexión) o a la municipalidad. Si es municipal, derivar al canal correspondiente.</span></li>
+          <li><div class="step-num">3</div><span>Si pertenece a la EPS, el Jefe de Oficina envía el oficio adjuntando fotografías.</span></li>
+        </ul>
+      </div>
+
+      <div>
+        <div class="detail-label">Oficio formal — Gerencia de Mantenimiento / Obras EPS</div>
+        <div class="email-wrapper">
+          <div class="email-topbar">
+            <div class="email-topbar-left"><span>📄</span> OFICIO DE SEGURIDAD</div>
+            <button class="copy-btn" onclick="doCopy(event,'ebB')">📋 Copiar oficio</button>
+          </div>
+          <div class="email-meta">
+            <div class="email-meta-row"><span class="email-meta-key">PARA:</span><span class="email-meta-val">Gerencia de Mantenimiento / Gerencia de Obras — [NOMBRE DE LA EPS]</span></div>
+            <div class="email-meta-row"><span class="email-meta-key">ASUNTO:</span><span class="email-subject-val">REQUERIMIENTO URGENTE: REPOSICIÓN DE [TAPA DE BUZÓN / SEÑALIZACIÓN / CERCADO DE SEGURIDAD] — RIESGO A INTEGRIDAD FÍSICA — IE <span class="ph">[NOMBRE IE]</span></span></div>
+          </div>
+          <div class="email-body" id="ebB">Estimados señores:
+
+La SUNASS comunica que, durante la visita de monitoreo realizada el día [FECHA] en el entorno de la institución educativa [NOMBRE DE LA IE], distrito de [DISTRITO], provincia de [PROVINCIA], se identificó la siguiente situación de riesgo vinculada a infraestructura de saneamiento a cargo de su representada:
+
+[SELECCIONAR Y COMPLETAR SEGÚN CORRESPONDA]:
+
+→ Se constató la existencia de un buzón de inspección de la red de [agua potable / alcantarillado] SIN TAPA, ubicado a [DISTANCIA] metros del ingreso principal de la IE, en [DIRECCIÓN / REFERENCIA].
+
+→ Se verificó que la obra de [DESCRIPCIÓN] en ejecución frente/al costado de la IE no cuenta con señalización ni cerco de seguridad conforme a las normas de seguridad en obras de infraestructura.
+
+→ Se identificó una obra de saneamiento en estado de abandono, sin cercado perimetral de protección, desde hace aproximadamente [TIEMPO], constituyendo una trampa de caída para transeúntes.
+
+Esta situación representa un peligro inminente para la vida e integridad física de los alumnos, docentes y personal del plantel, quienes transitan diariamente por la zona. Corresponde a su entidad, como responsable de la infraestructura de saneamiento, garantizar que sus activos y obras no representen riesgo para la comunidad.
+
+Se REQUIERE a [NOMBRE DE LA EPS]:
+
+1. Ejecutar la reposición de la tapa / instalación del cerco y señalización de seguridad en un plazo máximo de 12 horas desde la recepción del presente oficio.
+
+2. Si la solución definitiva requiere mayor plazo, instalar de manera inmediata (no mayor a 2 horas) una medida provisional de protección: colocación de conos de seguridad, malla de cercado o equivalente que elimine el riesgo de caída.
+
+3. Informar a esta oficina, en un plazo no mayor a 24 horas, las acciones ejecutadas y el plazo estimado para la solución definitiva.
+
+SUNASS realizará una verificación de cumplimiento de manera inopinada. El incumplimiento del presente requerimiento, documentado mediante constatación de campo, dará lugar al inicio del procedimiento de fiscalización y sanción.
+
+Se adjuntan evidencias fotográficas de la situación detectada.
+
+Atentamente,
+
+[NOMBRE DEL JEFE DE OFICINA / JEFE DE ODS O OAU]
+Jefe de Oficina Desconcentrada / Oficina de Atención al Usuario
+SUNASS — Oficina de [NOMBRE DE OFICINA]
+[FECHA]</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="detail-label">Seguimiento y cierre de ciclo</div>
+        <div class="seguimiento-block">
+          <div class="seguimiento-header">
+            <div class="seg-title">📌 Estado del oficio</div>
+            <div class="seg-status-badge pending" id="badgeB">SIN ENVIAR</div>
+          </div>
+          <div class="seg-row">
+            <div class="seg-field" style="min-width:200px;flex:2">
+              <label>Oficina</label>
+              <select id="oficinaB" onclick="stopBubble(event)" onchange="updateColegios('B');stopBubble(event)"><option value="">— Seleccionar —</option></select>
+            </div>
+            <div class="seg-field" style="min-width:200px;flex:3">
+              <label>Institución Educativa</label>
+              <select id="colegioB" onclick="stopBubble(event)" onchange="stopBubble(event)"><option value="">— Selecciona oficina primero —</option></select>
+            </div>
+          </div>
+          <div class="seg-row">
+            <div class="seg-field"><label>Fecha de envío</label><input type="date" id="sentB" onclick="stopBubble(event)" onchange="updateStatus('B');stopBubble(event)"></div>
+            <div class="seg-field"><label>Plazo esperado</label><div class="seg-plazo-info"><div class="pi-dot" style="background:#f77f00"></div>12 horas (EPS — URGENTE)</div></div>
+            <div class="seg-field"><label>Fecha de respuesta recibida</label><input type="date" id="replyB" onclick="stopBubble(event)" onchange="updateStatus('B');stopBubble(event)"></div>
+          </div>
+          <div class="seg-divider"></div>
+          <div class="seg-field" style="margin-bottom:10px">
+            <label>Notas de seguimiento</label>
+            <textarea id="notesB" onclick="stopBubble(event)" placeholder="Ej: EPS confirmó reposición de tapa el 15/06 a las 10:00. Verificación inopinada pendiente..."></textarea>
+          </div>
+          <div class="seg-btns">
+            <button class="seg-btn mark-reset" onclick="resetStatus('B');stopBubble(event)">↺ Reiniciar</button>
+            <button class="seg-btn mark-send" id="sendbtnB" onclick="enviarRegistro('B',event)">📤 Enviar a Google Sheets</button>
+          </div>
+          <div class="send-feedback" id="sfbB"></div>
+        </div>
+      </div>
+
+    </div></div>
+  </div>
+
+  <!-- ══════════════ BLOQUE C ══════════════ -->
+  <div class="cause-card cC" id="cardC">
+    <div class="cause-header" onclick="toggleCard('cardC')">
+      <div class="cause-num">C</div>
+      <div style="flex:1">
+        <div class="cause-title">Continuidad y Presión</div>
+        <div class="cause-subtitle">Baja presión, desabastecimiento, horario incumplido</div>
+      </div>
+      <div class="cause-arrow">▼</div>
+    </div>
+    <div class="actor-tag"><div class="actor-dot"></div> Actor clave: Gerencia Comercial / Operaciones — EPS</div>
+    <div class="detail-panel"><div class="detail-inner">
+
+      <div>
+        <div class="detail-label">Responsable de envío</div>
+        <div class="responsable-banner"><div class="responsable-icon">👤</div>
+          <div class="responsable-body">
+            <div class="responsable-title">⚠ Quién debe enviar este oficio</div>
+            <div class="responsable-name">Jefe de Oficina / Jefe de ODS o OAU</div>
+            <div class="responsable-desc">La notificación formal exige a la EPS justificar el incumplimiento ante el ente regulador y presentar medidas correctivas con plazo definido, lo que solo tiene efecto vinculante con la firma del Jefe de ODS o OAU.</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="detail-label">Criterio de identificación</div>
+        <span class="urgency-tag urgency-normal">📋 ESTÁNDAR — Informe técnico solicitado</span>
+        <div class="detail-text">Verificación en campo de al menos uno de los siguientes supuestos: (a) la IE no recibe agua en el horario declarado por la EPS en el recibo de facturación; (b) la presión en el punto de entrega es insuficiente para llenar tanques elevados; (c) la zona entera presenta desabastecimiento. Contraste obligatorio: horario declarado en recibo vs. horario real verificado en campo.</div>
+      </div>
+
+      <div>
+        <div class="detail-label">Pasos previos al oficio</div>
+        <ul class="steps-list">
+          <li><div class="step-num">1</div><span>Solicitar a la UGEL o al director de la IE el último recibo de agua para identificar el horario formal de abastecimiento y la tarifa aplicada.</span></li>
+          <li><div class="step-num">2</div><span>Comparar el horario del recibo con lo verificado en campo y con lo manifestado por el director. Documentar la discrepancia con hora y fotografías.</span></li>
+          <li><div class="step-num">3</div><span>El Jefe de Oficina envía el oficio adjuntando el recibo como evidencia documental.</span></li>
+        </ul>
+      </div>
+
+      <div>
+        <div class="detail-label">Oficio formal — Gerencia Comercial / Operaciones EPS</div>
+        <div class="email-wrapper">
+          <div class="email-topbar">
+            <div class="email-topbar-left"><span>📄</span> OFICIO A EPS</div>
+            <button class="copy-btn" onclick="doCopy(event,'ebC')">📋 Copiar oficio</button>
+          </div>
+          <div class="email-meta">
+            <div class="email-meta-row"><span class="email-meta-key">PARA:</span><span class="email-meta-val">Gerencia Comercial / Gerencia de Operaciones — [NOMBRE DE LA EPS]</span></div>
+            <div class="email-meta-row"><span class="email-meta-key">ASUNTO:</span><span class="email-subject-val">NOTIFICACIÓN POR INCUMPLIMIENTO DE CONDICIONES DE SERVICIO (CONTINUIDAD / PRESIÓN) — IE <span class="ph">[NOMBRE IE]</span></span></div>
+          </div>
+          <div class="email-body" id="ebC">Estimados señores:
+
+La SUNASS comunica que, en el marco de las acciones de monitoreo de las condiciones del servicio de agua potable en instituciones educativas, se realizó una visita de verificación el día [FECHA] a la institución educativa [NOMBRE DE LA IE], distrito de [DISTRITO], provincia de [PROVINCIA].
+
+Durante la visita se constató el siguiente incumplimiento de las condiciones de prestación del servicio:
+
+[SELECCIONAR Y COMPLETAR SEGÚN CORRESPONDA]:
+
+→ INCUMPLIMIENTO DE HORARIO: El recibo de facturación del periodo [MES/AÑO] consigna un horario de abastecimiento de [HORARIO DECLARADO] horas. Sin embargo, la verificación en campo realizada a las [HORA DE VERIFICACIÓN] confirmó la ausencia de servicio, y el director de la IE, señor(a) [NOMBRE DEL DIRECTOR], manifiesta que el agua solo llega entre [HORARIO REAL PERCIBIDO], lo que representa una reducción de [N.° HORAS] horas respecto a lo contratado y facturado.
+
+→ BAJA PRESIÓN: Se verificó que la presión de agua en el punto de entrada a la IE es insuficiente para activar el sistema de bombeo hacia los tanques elevados, impidiendo el abastecimiento regular de los servicios higiénicos y áreas de consumo del plantel.
+
+→ DESABASTECIMIENTO ZONAL: Se constató que la IE y las viviendas colindantes en [DESCRIPCIÓN DE LA ZONA] no registran suministro de agua desde hace [TIEMPO], sin que el prestador haya informado previamente sobre la causa de la interrupción.
+
+Esta situación impide el uso de los servicios higiénicos por la población escolar y genera condiciones de saneamiento inadecuadas que afectan el derecho a la educación en condiciones dignas.
+
+Conforme a lo establecido en el Plan Maestro Optimizado (PMO) y en el Reglamento de Calidad de la Prestación de los Servicios de Saneamiento, se SOLICITA a [NOMBRE DE LA EPS]:
+
+1. Remitir a esta oficina, en un plazo no mayor a 5 días hábiles, un informe técnico que explique con precisión las causas del desabastecimiento o reducción de la continuidad/presión en la zona afectada.
+
+2. Detallar en dicho informe las medidas correctivas adoptadas o por adoptar para restablecer las [N.° HORAS] horas de servicio estipuladas y el rango de presión mínimo garantizado conforme al PMO vigente.
+
+3. En caso de que el problema sea estructural o de largo plazo, indicar el cronograma de inversiones y el plazo comprometido de normalización.
+
+Esta oficina realizará verificaciones periódicas en campo hasta constatar el restablecimiento de las condiciones de servicio.
+
+Se adjunta copia del recibo de facturación como evidencia documental.
+
+Atentamente,
+
+[NOMBRE DEL JEFE DE OFICINA / JEFE DE ODS O OAU]
+Jefe de Oficina Desconcentrada / Oficina de Atención al Usuario
+SUNASS — Oficina de [NOMBRE DE OFICINA]
+[FECHA]</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="detail-label">Seguimiento y cierre de ciclo</div>
+        <div class="seguimiento-block">
+          <div class="seguimiento-header">
+            <div class="seg-title">📌 Estado del oficio</div>
+            <div class="seg-status-badge pending" id="badgeC">SIN ENVIAR</div>
+          </div>
+          <div class="seg-row">
+            <div class="seg-field" style="min-width:200px;flex:2">
+              <label>Oficina</label>
+              <select id="oficinaC" onclick="stopBubble(event)" onchange="updateColegios('C');stopBubble(event)"><option value="">— Seleccionar —</option></select>
+            </div>
+            <div class="seg-field" style="min-width:200px;flex:3">
+              <label>Institución Educativa</label>
+              <select id="colegioC" onclick="stopBubble(event)" onchange="stopBubble(event)"><option value="">— Selecciona oficina primero —</option></select>
+            </div>
+          </div>
+          <div class="seg-row">
+            <div class="seg-field"><label>Fecha de envío</label><input type="date" id="sentC" onclick="stopBubble(event)" onchange="updateStatus('C');stopBubble(event)"></div>
+            <div class="seg-field"><label>Plazo esperado</label><div class="seg-plazo-info"><div class="pi-dot" style="background:#ffc300"></div>5 días hábiles (EPS)</div></div>
+            <div class="seg-field"><label>Fecha de respuesta recibida</label><input type="date" id="replyC" onclick="stopBubble(event)" onchange="updateStatus('C');stopBubble(event)"></div>
+          </div>
+          <div class="seg-divider"></div>
+          <div class="seg-field" style="margin-bottom:10px">
+            <label>Notas de seguimiento</label>
+            <textarea id="notesC" onclick="stopBubble(event)" placeholder="Ej: EPS indicó que la zona tiene reducción de presión por obras de ampliación de red. Plazo de normalización: 30/06..."></textarea>
+          </div>
+          <div class="seg-btns">
+            <button class="seg-btn mark-reset" onclick="resetStatus('C');stopBubble(event)">↺ Reiniciar</button>
+            <button class="seg-btn mark-send" id="sendbtnC" onclick="enviarRegistro('C',event)">📤 Enviar a Google Sheets</button>
+          </div>
+          <div class="send-feedback" id="sfbC"></div>
+        </div>
+      </div>
+
+    </div></div>
+  </div>
+
+  <!-- ══════════════ BLOQUE D ══════════════ -->
+  <div class="cause-card cD" id="cardD">
+    <div class="cause-header" onclick="toggleCard('cardD')">
+      <div class="cause-num">D</div>
+      <div style="flex:1">
+        <div class="cause-title">Infraestructura Interna Degradada</div>
+        <div class="cause-subtitle">Sin agua dentro del plantel pese a que la red funciona</div>
+      </div>
+      <div class="cause-arrow">▼</div>
+    </div>
+    <div class="actor-tag"><div class="actor-dot"></div> Actor clave: UGEL / DRE</div>
+    <div class="detail-panel"><div class="detail-inner">
+
+      <div>
+        <div class="detail-label">Responsable de envío</div>
+        <div class="responsable-banner"><div class="responsable-icon">👤</div>
+          <div class="responsable-body">
+            <div class="responsable-title">⚠ Quién debe enviar este oficio</div>
+            <div class="responsable-name">Jefe de Oficina / Jefe de ODS o OAU</div>
+            <div class="responsable-desc">Al tratarse de una falla de gestión interna de la IE, la notificación formal a la UGEL es el mecanismo para activar la asignación de presupuesto de mantenimiento. Sin la firma del Jefe de ODS o OAU, la UGEL no queda institucionalmente notificada ni puede exigírsele cumplimiento posterior.</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="detail-label">Criterio de identificación</div>
+        <span class="urgency-tag urgency-normal">🔍 Verificación previa obligatoria</span>
+        <div class="detail-text">La red pública presenta presión adecuada en viviendas colindantes, pero dentro de la IE no ingresa agua o el sistema de distribución interno no funciona correctamente. Las causas típicas son: electrobomba inoperativa, válvula check cerrada o trabada, tubería interna obstruida o rota, o falla eléctrica en el sistema de bombeo. La responsabilidad recae en la UGEL/DRE como entidad encargada del mantenimiento del plantel.</div>
+      </div>
+
+      <div>
+        <div class="detail-label">Pasos previos al oficio</div>
+        <ul class="steps-list">
+          <li><div class="step-num">1</div><span>Medir la presión en el medidor o conexión domiciliaria de la IE para confirmar que la EPS está entregando agua correctamente en el punto de entrada.</span></li>
+          <li><div class="step-num">2</div><span>Verificar con el personal del plantel si la electrobomba tiene energía eléctrica y si está encendida. Solicitar el último mantenimiento del sistema.</span></li>
+          <li><div class="step-num">3</div><span>Confirmada la falla interna, el Jefe de Oficina envía el oficio a la UGEL exigiendo intervención urgente.</span></li>
+        </ul>
+      </div>
+
+      <div>
+        <div class="detail-label">Oficio formal — UGEL / DRE</div>
+        <div class="email-wrapper">
+          <div class="email-topbar">
+            <div class="email-topbar-left"><span>📄</span> OFICIO A UGEL / DRE</div>
+            <button class="copy-btn" onclick="doCopy(event,'ebD')">📋 Copiar oficio</button>
+          </div>
+          <div class="email-meta">
+            <div class="email-meta-row"><span class="email-meta-key">PARA:</span><span class="email-meta-val">Director(a) de la UGEL / DRE correspondiente</span></div>
+            <div class="email-meta-row"><span class="email-meta-key">ASUNTO:</span><span class="email-subject-val">ALERTA DE INOPERATIVIDAD DEL SISTEMA INTERNO DE SANEAMIENTO — IE <span class="ph">[NOMBRE IE]</span></span></div>
+          </div>
+          <div class="email-body" id="ebD">Estimado(a) Director(a):
+
+La SUNASS pone en conocimiento de su despacho que, durante la visita de monitoreo realizada el día [FECHA] a la institución educativa [NOMBRE DE LA IE], distrito de [DISTRITO], provincia de [PROVINCIA], se constató que el plantel no cuenta con suministro de agua funcional en sus instalaciones internas.
+
+La evaluación técnica in situ determinó que la red pública de distribución a cargo del prestador [NOMBRE DE LA EPS] opera en condiciones adecuadas, registrándose una presión de [VALOR] m.c.a. en el punto de entrega (medidor) de la IE. Por lo tanto, el origen del problema reside en el sistema interno del plantel, identificándose las siguientes fallas:
+
+[SELECCIONAR Y COMPLETAR SEGÚN CORRESPONDA]:
+→ La electrobomba del sistema de impulsión de agua se encuentra inoperativa por [FALLA ELÉCTRICA / AVERÍA MECÁNICA / SIN MANTENIMIENTO].
+→ La válvula check de la línea de entrada presenta obstrucción o cierre permanente, impidiendo el ingreso de agua a la cisterna.
+→ Las tuberías internas del sistema de distribución presentan obstrucciones o roturas que impiden la circulación del agua hacia los puntos de consumo.
+
+Esta situación imposibilita el uso de los servicios higiénicos por la comunidad escolar y compromete las condiciones de saneamiento mínimas para el desarrollo de las actividades educativas presenciales, siendo susceptible de derivar en la suspensión de clases.
+
+Se SOLICITA a su despacho:
+
+1. Disponer con carácter de urgencia la asignación de presupuesto de mantenimiento para la reparación inmediata del [SISTEMA DE BOMBEO / VÁLVULAS / TUBERÍAS INTERNAS] de la IE [NOMBRE].
+
+2. Remitir a esta oficina, en un plazo no mayor a 5 días hábiles, un informe de acciones adoptadas que incluya: fecha de inicio de reparación, empresa o personal técnico contratado y plazo estimado de normalización.
+
+3. Adoptar en el corto plazo medidas de contingencia para garantizar el acceso mínimo al agua en los servicios higiénicos mientras se concreta la reparación definitiva (acarreo de agua, tanques de emergencia u equivalente).
+
+Se advierte que la persistencia de esta situación, una vez formalizada la notificación a las autoridades educativas, trasladará la responsabilidad sanitaria de cualquier afectación a la salud de la comunidad escolar a las instancias encargadas del mantenimiento del plantel.
+
+Se adjuntan las evidencias fotográficas y el reporte de verificación de presión en el punto de entrega.
+
+Atentamente,
+
+[NOMBRE DEL JEFE DE OFICINA / JEFE DE ODS O OAU]
+Jefe de Oficina Desconcentrada / Oficina de Atención al Usuario
+SUNASS — Oficina de [NOMBRE DE OFICINA]
+[FECHA]</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="detail-label">Seguimiento y cierre de ciclo</div>
+        <div class="seguimiento-block">
+          <div class="seguimiento-header">
+            <div class="seg-title">📌 Estado del oficio</div>
+            <div class="seg-status-badge pending" id="badgeD">SIN ENVIAR</div>
+          </div>
+          <div class="seg-row">
+            <div class="seg-field" style="min-width:200px;flex:2">
+              <label>Oficina</label>
+              <select id="oficinaD" onclick="stopBubble(event)" onchange="updateColegios('D');stopBubble(event)"><option value="">— Seleccionar —</option></select>
+            </div>
+            <div class="seg-field" style="min-width:200px;flex:3">
+              <label>Institución Educativa</label>
+              <select id="colegioD" onclick="stopBubble(event)" onchange="stopBubble(event)"><option value="">— Selecciona oficina primero —</option></select>
+            </div>
+          </div>
+          <div class="seg-row">
+            <div class="seg-field"><label>Fecha de envío</label><input type="date" id="sentD" onclick="stopBubble(event)" onchange="updateStatus('D');stopBubble(event)"></div>
+            <div class="seg-field"><label>Plazo esperado</label><div class="seg-plazo-info"><div class="pi-dot" style="background:#00b4d8"></div>5 días hábiles (UGEL/DRE)</div></div>
+            <div class="seg-field"><label>Fecha de respuesta recibida</label><input type="date" id="replyD" onclick="stopBubble(event)" onchange="updateStatus('D');stopBubble(event)"></div>
+          </div>
+          <div class="seg-divider"></div>
+          <div class="seg-field" style="margin-bottom:10px">
+            <label>Notas de seguimiento</label>
+            <textarea id="notesD" onclick="stopBubble(event)" placeholder="Ej: UGEL indicó que contratará técnico esta semana. Director confirma que bomba sin mantenimiento desde 2022..."></textarea>
+          </div>
+          <div class="seg-btns">
+            <button class="seg-btn mark-reset" onclick="resetStatus('D');stopBubble(event)">↺ Reiniciar</button>
+            <button class="seg-btn mark-send" id="sendbtnD" onclick="enviarRegistro('D',event)">📤 Enviar a Google Sheets</button>
+          </div>
+          <div class="send-feedback" id="sfbD"></div>
+        </div>
+      </div>
+
+    </div></div>
+  </div>
+
+  <!-- ══════════════ BLOQUE E ══════════════ -->
+  <div class="cause-card cE" id="cardE">
+    <div class="cause-header" onclick="toggleCard('cardE')">
+      <div class="cause-num">E</div>
+      <div style="flex:1">
+        <div class="cause-title">Calidad y Delitos contra el Servicio</div>
+        <div class="cause-subtitle">Turbidez / olor, robo de medidor, conexiones clandestinas</div>
+      </div>
+      <div class="cause-arrow">▼</div>
+    </div>
+    <div class="actor-tag"><div class="actor-dot"></div> Actor clave: Gerencia General EPS / Comisaría</div>
+    <div class="detail-panel"><div class="detail-inner">
+
+      <div>
+        <div class="detail-label">Responsable de envío</div>
+        <div class="responsable-banner"><div class="responsable-icon">👤</div>
+          <div class="responsable-body">
+            <div class="responsable-title">⚠ Quién debe enviar este oficio</div>
+            <div class="responsable-name">Jefe de Oficina / Jefe de ODS o OAU</div>
+            <div class="responsable-desc">Los problemas de calidad pueden derivar en riesgo sanitario inmediato. Los delitos contra el servicio (robo, clandestinaje) requieren acción conjunta con la EPS y eventualmente con la Policía Nacional. Solo la firma del Jefe de ODS o OAU garantiza el peso institucional necesario para ambas vías.</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="detail-label">Criterio de identificación por subtipo</div>
+        <div class="norm-ref" style="margin-bottom:8px"><span>🔵</span><div><strong style="color:#b8d0e8">Calidad (turbidez / olor / color):</strong> Percepción organoléptica anómala del agua en los grifos de la IE. Requiere toma de muestra por laboratorio acreditado para confirmar el parámetro fuera de norma antes de escalar.</div></div>
+        <div class="norm-ref" style="margin-bottom:8px"><span>🔴</span><div><strong style="color:#b8d0e8">Robo de medidor:</strong> El equipo de medición ha sido retirado o dañado de forma intencional. La EPS tiene obligación de reponerlo sin costo para el usuario conforme a normativa vigente.</div></div>
+        <div class="norm-ref"><span>🟠</span><div><strong style="color:#b8d0e8">Conexión clandestina:</strong> Detección de derivación no autorizada en la conexión domiciliaria de la IE o en la red pública aledaña. Riesgo de contaminación cruzada y afectación de la facturación.</div></div>
+      </div>
+
+      <div>
+        <div class="detail-label">Oficio formal — Gerencia General EPS (+ Comisaría si aplica)</div>
+        <div class="email-wrapper">
+          <div class="email-topbar">
+            <div class="email-topbar-left"><span>📄</span> OFICIO A EPS / COMISARÍA</div>
+            <button class="copy-btn" onclick="doCopy(event,'ebE')">📋 Copiar oficio</button>
+          </div>
+          <div class="email-meta">
+            <div class="email-meta-row"><span class="email-meta-key">PARA:</span><span class="email-meta-val">Gerencia General — [NOMBRE DE LA EPS] / Comisaría PNP [NOMBRE] (según aplique)</span></div>
+            <div class="email-meta-row"><span class="email-meta-key">ASUNTO:</span><span class="email-subject-val">REPORTE DE [PROBLEMAS DE CALIDAD DEL AGUA / ROBO DE MEDIDOR / CONEXIÓN CLANDESTINA] — IE <span class="ph">[NOMBRE IE]</span></span></div>
+          </div>
+          <div class="email-body" id="ebE">Estimados señores:
+
+La SUNASS, en ejercicio de sus funciones de supervisión de la calidad y regularidad de los servicios de saneamiento, pone en conocimiento de su institución el siguiente evento detectado durante la visita de monitoreo realizada el día [FECHA] en la institución educativa [NOMBRE DE LA IE], distrito de [DISTRITO], provincia de [PROVINCIA]:
+
+═══════════════════════════════════════
+[USAR SOLO EL APARTADO QUE CORRESPONDA]
+═══════════════════════════════════════
+
+▸ PROBLEMA DE CALIDAD DEL AGUA (TURBIDEZ / OLOR / COLOR ANÓMALO):
+Durante la visita, el agua suministrada en los grifos de la IE presentó las siguientes características organolépticas anómalas: [DESCRIBIR: turbidez visible / olor a [DESCRIBIR] / coloración [DESCRIBIR]], que difieren de los parámetros establecidos por el D.S. N.° 031-2010-SA (Reglamento de la Calidad del Agua para Consumo Humano).
+
+Se SOLICITA:
+1. Realizar de manera inmediata la toma de muestras en el punto de entrega de la IE por parte de un laboratorio acreditado por INACAL, para determinar los parámetros fuera de norma.
+2. Remitir a esta oficina los resultados del análisis dentro de las 48 horas siguientes.
+3. Adoptar las medidas correctivas necesarias (purgas de red, lavado de reservorios, ajuste en planta de tratamiento) para restablecer la calidad del agua conforme a norma.
+4. Informar a la comunidad escolar que debe abstenerse de consumir el agua hasta que se confirme su calidad mediante análisis de laboratorio.
+
+▸ ROBO O DAÑO INTENCIONAL DEL MEDIDOR DE AGUA:
+Se constató que el medidor de agua de la IE [NOMBRE] ha sido [sustraído / dañado intencionalmente], encontrándose la caja de medición en estado de [DESCRIPCIÓN: violentada / vacía / con rastros de manipulación forzada]. Este hecho, además de constituir un delito tipificado en el Código Penal, afecta la correcta facturación del servicio y la sostenibilidad económica del sistema.
+
+Se SOLICITA a la EPS:
+1. Proceder a la reposición del medidor sin costo alguno para la IE [NOMBRE], conforme a la normativa vigente, en un plazo máximo de 5 días hábiles.
+2. Presentar denuncia ante la Comisaría PNP del sector, remitiendo copia a esta oficina.
+
+Se SOLICITA a la Comisaría PNP [NOMBRE]:
+1. Tomar conocimiento formal del hecho y realizar las investigaciones correspondientes para identificar a los responsables.
+
+▸ CONEXIÓN CLANDESTINA DETECTADA:
+Se identificó la existencia de una derivación no autorizada en [LA CONEXIÓN DOMICILIARIA DE LA IE / LA RED PÚBLICA ALEDAÑA], ubicada en [DIRECCIÓN / REFERENCIA], que es utilizada por [DESCRIPCIÓN DEL USUARIO NO AUTORIZADO] sin contar con contrato de suministro ni medidor activo.
+
+Esta situación genera: reducción de la presión y continuidad del servicio en la IE, riesgo de contaminación cruzada por falta de control de la instalación, y perjuicio económico al sistema de saneamiento.
+
+Se SOLICITA a la EPS:
+1. Ejecutar el corte y sellado de la conexión clandestina en un plazo máximo de 5 días hábiles, conforme al Reglamento de Prestación de Servicios.
+2. Iniciar el procedimiento administrativo correspondiente contra el usuario infractor e interponer la denuncia penal respectiva.
+3. Remitir a esta oficina el acta de corte y sellado como evidencia del cumplimiento.
+
+═══════════════════════════════════════
+
+Se adjuntan las evidencias fotográficas del evento detectado.
+
+Atentamente,
+
+[NOMBRE DEL JEFE DE OFICINA / JEFE DE ODS O OAU]
+Jefe de Oficina Desconcentrada / Oficina de Atención al Usuario
+SUNASS — Oficina de [NOMBRE DE OFICINA]
+[FECHA]</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="detail-label">Seguimiento y cierre de ciclo</div>
+        <div class="seguimiento-block">
+          <div class="seguimiento-header">
+            <div class="seg-title">📌 Estado del oficio</div>
+            <div class="seg-status-badge pending" id="badgeE">SIN ENVIAR</div>
+          </div>
+          <div class="seg-row">
+            <div class="seg-field" style="min-width:200px;flex:2">
+              <label>Oficina</label>
+              <select id="oficinaE" onclick="stopBubble(event)" onchange="updateColegios('E');stopBubble(event)"><option value="">— Seleccionar —</option></select>
+            </div>
+            <div class="seg-field" style="min-width:200px;flex:3">
+              <label>Institución Educativa</label>
+              <select id="colegioE" onclick="stopBubble(event)" onchange="stopBubble(event)"><option value="">— Selecciona oficina primero —</option></select>
+            </div>
+          </div>
+          <div class="seg-row">
+            <div class="seg-field"><label>Fecha de envío</label><input type="date" id="sentE" onclick="stopBubble(event)" onchange="updateStatus('E');stopBubble(event)"></div>
+            <div class="seg-field"><label>Plazo esperado</label><div class="seg-plazo-info"><div class="pi-dot" style="background:#9664ff"></div>48 h (calidad) / 5 días hábiles (resto)</div></div>
+            <div class="seg-field"><label>Fecha de respuesta recibida</label><input type="date" id="replyE" onclick="stopBubble(event)" onchange="updateStatus('E');stopBubble(event)"></div>
+          </div>
+          <div class="seg-divider"></div>
+          <div class="seg-field" style="margin-bottom:10px">
+            <label>Notas de seguimiento</label>
+            <textarea id="notesE" onclick="stopBubble(event)" placeholder="Ej: EPS tomó muestra el 15/06. Resultados pendientes. / Medidor repuesto el 18/06 sin costo. / Conexión clandestina cortada el..."></textarea>
+          </div>
+          <div class="seg-btns">
+            <button class="seg-btn mark-reset" onclick="resetStatus('E');stopBubble(event)">↺ Reiniciar</button>
+            <button class="seg-btn mark-send" id="sendbtnE" onclick="enviarRegistro('E',event)">📤 Enviar a Google Sheets</button>
+          </div>
+          <div class="send-feedback" id="sfbE"></div>
+        </div>
+      </div>
+
+    </div></div>
+  </div>
+
+  </div><!-- /causes-grid -->
+
+  <div class="legend">
+    <div class="legend-title">Actores clave por bloque</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#ff6464"></div> Bloque A — Gerencia de Operaciones EPS</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#f77f00"></div> Bloque B — Gerencia de Mantenimiento / Obras EPS</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#ffc300"></div> Bloque C — Gerencia Comercial / Operaciones EPS</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#00b4d8"></div> Bloque D — UGEL / DRE</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#9664ff"></div> Bloque E — Gerencia General EPS / Comisaría</div>
+  </div>
+
+</div><!-- /wrapper -->
+
+<script>
+/* ══════════════ DATA ══════════════ */
+const OFICINAS = [
+  'OAU ATE','OAU BREÑA','OAU CALLAO','OAU CAÑETE','OAU COMAS',
+  'OAU HUACHO','OAU SAN JUAN DE LURIGANCHO','OAU SURQUILLO','OAU VILLA EL SALVADOR',
+  'ODS AMAZONAS','ODS APURIMAC','ODS AREQUIPA','ODS AYACUCHO','ODS CAJAMARCA',
+  'ODS CHIMBOTE','ODS CUSCO','ODS HUANCAVELICA','ODS HUANUCO','ODS HUARAZ',
+  'ODS ICA','ODS JUNIN','ODS LA LIBERTAD','ODS LAMBAYEQUE','ODS LORETO',
+  'ODS MADRE DE DIOS','ODS MOQUEGUA','ODS PASCO','ODS PIURA','ODS PUNO',
+  'ODS SAN MARTIN','ODS TACNA','ODS TUMBES','ODS UCAYALI'
+];
+
+const BLOQUES_INFO = {
+  'A':{ bloque:'Bloque A', problema:'Emergencias Operativas — Aniegos / Alcantarillado', actor:'Gerencia de Operaciones EPS', plazoDias: 4/24 },
+  'B':{ bloque:'Bloque B', problema:'Seguridad Física — Tapas / Señalización / Obras',  actor:'Gerencia de Mantenimiento / Obras EPS', plazoDias: 12/24 },
+  'C':{ bloque:'Bloque C', problema:'Continuidad y Presión — Horario / Presión / Desabastecimiento', actor:'Gerencia Comercial / Operaciones EPS', plazoDias: 5 },
+  'D':{ bloque:'Bloque D', problema:'Infraestructura Interna Degradada — Falla en bomba / tuberías', actor:'UGEL / DRE', plazoDias: 5 },
+  'E':{ bloque:'Bloque E', problema:'Calidad y Delitos — Turbidez / Robo medidor / Clandestinaje', actor:'Gerencia General EPS / Comisaría', plazoDias: 2/24 }
+};
+
+
+const COLEGIOS_MAP = {"ODS JUNIN": ["219923 - 31458 SAN JUDAS TADEO", "219980 - 31542 VIRGEN MARIA ADMIRABLE", "221902 - 30012 VICTOR ALBERTO GIL MALLMA", "221916 - 30035 SAN FRANCISCO DE ASIS - INCLUSIVA", "221964 - 30170", "221978 - 31301 JOSE GALVEZ EGUSQUIZA", "221983 - 31543 TUPAC AMARU", "222001 - POLITECNICO TUPAC AMARU", "222893 - 30208 JESUS MI AMADO SALVADOR", "222968 - 30216 SAGRADO CORAZON DE MARIA", "222987 - 30218 MADRE TERESA DE CALCUTA", "223034 - 30225 LA ALBORADA", "223053 - 30240", "223072 - 30426 VIRGEN DE LA MERCED", "223086 - RICARDO MENENDEZ MENENDEZ", "223091 - 31510 VIRGEN DE FATIMA", "223128 - 31594", "223147 - 31939", "223152 - 31942 MARISCAL CASTILLA", "223208 - FRANCISCO DE ZELA", "223232 - LA VICTORIA", "223289 - HEROES DEL CENEPA", "223307 - 30129 MICAELA BASTIDAS", "224651 - 30168", "224665 - 30169 NUESTRA SEÑORA DEL CARMEN", "227447 - 30181 VIRGEN DE LOURDES", "229597 - 30327", "229644 - SAN FRANCISCO DE ASIS", "248505 - 30108 JOSE MARIA ARGUEDAS ALTAMIRANO", "835166 - 30059 ROSA DE AMERICA"], "ODS LAMBAYEQUE": ["275706 - 10002", "275886 - 11023 ABRAHAM VALDELOMAR", "278352 - 11027 DIVINO NIÑO DEL MILAGRO", "278366 - 11028 CESAR FRANCISCO PINGLO CHUNGA", "278385 - PEDRO RUIZ GALLO", "278451 - 10049 VIRGEN MARIA", "278470 - JOSE ANTONIO GARCIA Y GARCIA", "279592 - 10046 SAN CARLOS", "279605 - 10795", "279634 - 11030 INMACULADA CONCEPCION", "279648 - DIEGO FERRE SOSA", "279653 - JESUS NAZARENO CAUTIVO", "280005 - 080 TESORITOS DE MARIA", "280034 - 10012 MANUEL AMADOR FORTUNATO GUERRERO TORRES", "280053 - FELIPE SANTIAGO SALAVERRY", "280109 - 10005 SANTA ROSA DE LIMA", "280114 - 10014 SAN MARTIN DE PORRES", "280128 - 10016 SANTISIMA VIRGEN DEL CARMEN", "280147 - MANUEL GONZALES PRADA", "280152 - ELIAS AGUIRRE", "280208 - 11256 FERMIN AVILA MORON", "281670 - 10253", "281689 - 10058", "281694 - 10059 JUAN GALO MUÑOZ PALACIOS", "281811 - 10056 HECTOR RENE LANEGRA ROMERO", "283457 - 11035 SANTO DOMINGO SAVIO", "283476 - PERU BIRF", "283631 - 10112 SAN MARTIN DE PORRES VELASQUEZ", "283650 - 11036 27 DE DICIEMBRE", "283768 - SAN MARTIN"], "OAU BREÑA": ["142491 - LICEO NAVAL CONTRALMIRANTE MONTERO", "288006 - 1152-108 DOS DE MAYO", "288054 - 0035 NUESTRA SEÑORA DE LA VISITACION", "288105 - 0095 MARIA AUXILIADORA", "288134 - 105 PEDRO CORONADO ARRASCUE", "288172 - 1027 REPUBLICA DE NICARAGUA", "288186 - 1028 REPUBLICA ARGENTINA", "288233 - 1038 MARIA PARADO DE BELLIDO", "288346 - 1156 JOSE SEBASTIAN BARRANCA LOVERA", "288370 - 1160 JOSE FAUSTINO SANCHEZ CARRION", "288676 - 1168 HEROES DEL CENEPA", "295573 - 0004 MARIANO MELGAR", "295752 - MICAELA BASTIDAS", "306680 - GABRIELA MISTRAL", "306717 - TERESA GONZALES DE FANNING", "308641 - 093 MANUELA FELICIA GOMEZ", "308679 - 1105 LA SAGRADA FAMILIA", "308702 - 1111 JOSE ANTONIO ENCINAS", "308740 - 1119 NUESTRA SEÑORA DEL ROSARIO DE FATIMA", "308797 - 1127 LINCOLN", "308820 - 1131 ROMULO ADRIAN CORDOVA HUAMAN", "308877 - 501 MONSEÑOR DAMASO LEBERGERE", "308900 - CESAR A. VALLEJO", "308938 - GRAL FELIPE SANTIAGO SALAVERRY", "308943 - ISABEL LA CATOLICA", "315316 - 1090 CRNL FAP MARCO ANTONIO SCHENONE OLIVA", "315415 - 012 REPUBLICA DOMINICANA", "337422 - 1086 JESUS REDENTOR", "337436 - 16 ALMIRANTE MIGUEL GRAU", "702604 - 0014 ANDRES BELLO"], "OAU ATE": ["291570 - 1281 SANTA MARIA", "291706 - 0029 MARCO PUENTE LLANOS", "291711 - COLEGIO NACIONAL MIXTO HUAYCAN", "291787 - 1258 SEBASTIAN LORENTE", "292013 - EDELMIRA DEL PANDO", "292150 - COLEGIO NACIONAL VITARTE", "292254 - 046 VICTOR RAUL HAYA DE LA TORRE", "292305 - RICARDO PALMA", "292329 - 1244 MICAELA BASTIDAS", "292471 - 1143 DOMINGO FAUSTINO SARMIENTO", "298072 - 1188 JUAN PABLO II", "298091 - 1199 MRCAL RAMON CASTILLA", "298133 - 787 ALMIRANTE MIGUEL GRAU", "298147 - 150", "298166 - 015", "298185 - 132 LOS ANGELES DE MARIA", "298213 - 144", "300744 - 1261 GUILLERMO WAGNER", "300782 - 155", "304718 - 0009 JOSE MARIA ARGUEDAS", "304780 - 048 SAN JUAN BOSCO", "304940 - 1025 MARIA PARADO DE BELLIDO", "305001 - 1169 ALMIRANTE MIGUEL GRAU SEMINARIO", "305015 - 1170", "305082 - JOSE CARLOS MARIATEGUI", "338681 - 0097 PATRICIA ANTONIA LOPEZ", "338704 - 0106 ABRAHAM VALDELOMAR", "338718 - 107 DANIEL ALCIDES CARRION GARCIA", "338742 - 123 LOS ARBOLES", "721829 - VICTOR RAUL HAYA DE LA TORRE"], "OAU SURQUILLO": ["295059 - 6051 MERCEDES INDACOCHEA", "295083 - 7043 CORAZON DE JESUS", "298661 - 564 LOS JILGUEROS DE VILLA VENTURO", "298675 - 567 MI PEQUEÑO PEDRO", "298699 - 570 INTEGRACION", "298736 - 6005 GENERAL EMILIO SOYER CABERO", "298760 - 6075 JOSE MARIA ARGUEDAS", "298798 - 6091 CESAR VALLEJO", "298802 - 6092 LOS REYES CATOLICOS", "298821 - 6153 CAPITAN DEL EJERCITO PERUANO AUGUSTO JAVIER GUTIERREZ MENDOZA", "298878 - 7039 MANUEL SCORZA TORRES", "298897 - 7044 SAN MARTIN DE PORRES", "298977 - COMUNAL SAN JUAN DE LA LIBERTAD", "298982 - COMUNAL SANTA ISABEL DE VILLA", "298996 - COMUNAL SANTA TERESA", "299043 - LOS INKAS", "300334 - FE Y ALEGRIA 34", "310031 - 1059 MARIA INMACULADA", "310045 - 1057 JOSE BAQUIJANO Y CARRILLO", "316660 - 7008 SCIPION E. LLONA", "316698 - 7001 ANDRES BELLO", "340090 - MILAGRITOS DE JESUS", "340165 - 6044 JORGE CHAVEZ", "340274 - 6086 SANTA ISABEL", "340288 - 6097 MATEO PUMACAHUA", "340293 - 7076 LAS BRISAS DE VILLA", "342843 - 6049 RICARDO PALMA", "342918 - 7028 MARCO ANTONIO SCHENONE OLIVA", "342999 - NUESTRA SEÑORA DE LOURDES", "725889 - ARQUITECTO FERNANDO BELAUNDE TERRY"], "OAU SAN JUAN DE LURIGANCHO": ["323830 - 0043 JUAN PABLO II", "323986 - 0086 CAMPOY", "324410 - 0045 SAN ANTONIO", "324429 - 0073 BENITO JUAREZ", "324448 - 0086 JOSE MARIA ARGUEDAS", "324467 - 0088 NUESTRA SEÑORA DEL CARMEN", "324561 - 122 ANDRES AVELINO CACERES", "324575 - 125 RICARDO PALMA", "324580 - 126 JAVIER PEREZ DE CUELLAR", "324603 - 0130 HEROES DEL CENEPA", "324636 - 0134 MARIO FLORIAN", "324641 - 0135 TORIBIO RODRIGUEZ DE MENDOZA", "324660 - 0137 MIGUEL GRAU SEMINARIO", "324679 - 0138 PROCERES DE LA INDEPENDENCIA", "324783 - 0153 ALEJANDRO SANCHEZ ARTEAGA", "324858 - 0160 SOLIDARIDAD I", "324877 - 0162 SAN JOSE OBRERO", "324882 - 163 TENIENTE CORONEL EP NESTOR ESCUDERO OTERO", "324924 - 0168 AMISTAD PERU JAPON", "324981 - 0071 NUESTRA SEÑORA DE LA MERCED", "324995 - 0143 SOLIDARIDAD II", "325004 - 0140 SANTIAGO ANTUNEZ DE MAYOLO", "325117 - 0119 CANTO BELLO", "325221 - 1181 ALBERT EINSTEIN", "325315 - SOLIDARIDAD III", "325396 - ANTONIA MORENO DE CACERES", "325400 - 0146 SU SANTIDAD JUAN PABLO II", "325424 - 0120 MANUEL ROBLES ALARCON", "327965 - PADRE CARLOS", "802439 - CESAR VALLEJO"], "OAU HUACHO": ["340523 - 20321 SANTA ROSA", "348802 - 20475", "348920 - 21012", "348958 - 21581 DECISION CAMPESINA", "349000 - VENTURA CCALAMAQUI", "349967 - 330", "350116 - 20522", "350121 - 20523 CORAZON DE JESUS", "354633 - 547 ANTONIO GRAÑA REYES", "354690 - 400 VIRGEN DEL ROSARIO", "354713 - 546 SAN ANTONIO", "354727 - 03 VIRGEN DE LA MEDALLA MILAGROSA", "354794 - 20403 CARLOS MARTINEZ URIBE", "354911 - 20402 VIRGEN DE FATIMA", "354949 - 20453 SANTA TERESITA DEL NIÑO JESUS", "354968 - 20406", "354973 - 20449 ANDRES DE LOS REYES", "355010 - NUESTRA SEÑORA DEL CARMEN", "359013 - 20990 PEDRO E. PAULET", "359027 - 20325 SAN JOSE DE MANZANARES", "359032 - 658", "359046 - 20316 MANUEL ILDAURO DE LOS SANTOS CAMONES", "359112 - 20827 MERCEDES INDACOCHEA LOZANO", "359961 - 467", "359975 - 20326", "359980 - 20329 JOSE CARLOS MARIATEGUI", "360035 - 20983 JULIO C. TELLO", "361285 - FRAY MELCHOR APONTE", "361290 - 647", "734228 - MADRE TERESA DE CALCUTA"], "ODS TACNA": ["486346 - PNP ALFEREZ MARIANO SANTOS MATEOS", "486351 - 42002 CARLOS WIESSE", "486365 - 42005 JOSE ROSA ARA", "486426 - 42014 JOSE JIMENEZ BORJA", "486474 - 42022 DR. MODESTO MONTESINOS ZAMALLOA", "486501 - COLEGIO DE ALTO RENDIMIENTO DE TACNA", "486544 - 42238 ENRIQUE PAILLARDELLE", "486582 - 43001 HERMANOS BARRETO", "486624 - 43009 MARIA UGARTECHE DE MACLEAN", "486643 - 42003 CORONEL GREGORIO ALBARRACIN", "486657 - 42010 SANTISIMA NIÑA MARIA", "486704 - 43006 MERCEDES INDACOCHEA", "486836 - 42253 GERARDO ARIAS COPAJA", "487591 - 42088 DON JOSE DE SAN MARTIN", "487633 - GUILLERMO AUZA ARCE", "487770 - 408 SANTISIMA TRINIDAD", "487789 - 413 LUIS BANCHERO ROSSI", "487794 - 415 SAGRADA FAMILIA", "487845 - 42250 CESAR AUGUSTO COHAILA TAMAYO", "487850 - 42251 SIMON BOLIVAR", "488331 - 312 JESUS NAZARENO", "488350 - 43004 JUSTO ARIAS ARAGUEZ", "488369 - FEDERICO BARRETO", "488374 - MANUEL FLORES CALVO", "808436 - 427 JESUS DIVINA MISERICORDIA", "808455 - 42255 SANTA TERESITA DEL NIÑO JESUS", "808653 - LUIS ALBERTO SANCHEZ", "808686 - 42257 NUESTRO SEÑOR DE LA MISERICORDIA", "808851 - 43505 GUSTAVO PONS MUZZO", "857790 - 473 PEDRO QUINA CASTAÑON"], "ODS AMAZONAS": ["000104 - 053", "000123 - 056 DIVINO NIÑO JESUS", "000260 - VIRGEN ASUNTA", "002457 - EMBLEMATICA MANUEL ANTONIO MESONES MURO", "002462 - LA INMACULADA", "011188 - 16210 ALEJANDRO SANCHEZ ARTEAGA", "011193 - 16211", "012079 - JOSE SANTOS CHOCANO", "012244 - ALEJANDRO CUSSIANOVICH VILLARAN", "178932 - 18006", "520454 - 201 NIÑO JESUS DE PRAGA", "636906 - 17833"], "ODS HUARAZ": ["015186 - 233", "015191 - 286", "015370 - 86019 LA LIBERTAD", "015389 - 86686 SEÑOR DE LA SOLEDAD", "015756 - 86001 SANTA ROSA DE VITERBO", "016223 - 86002 JORGE BASADRE GROHMAN", "016242 - 86021 SIMON ANTONIO BOLIVAR PALACIOS", "016360 - 86040 SUIZA PERUANA", "019288 - 452", "019306 - 86211 CORONEL BOLOGNESI", "019311 - 86214 GUILLERMO BRACALE RAMOS", "026547 - 260 NUESTRA SEÑORA DE LAS MERCEDES"], "ODS CHIMBOTE": ["022139 - 88101 CESAR ABRAHAM VALLEJO MENDOZA", "025963 - INCA GARCILASO DE LA VEGA", "025982 - SANTA ROSA", "034062 - 88232 NUESTRA VIRGEN MARIA", "034236 - 88009 ENRIQUE MEIGGS", "034415 - 88036 MARIANO MELGAR", "034590 - 88357 TERESA GONZALES DE FANNING", "034608 - 88376 JOSE SANTOS CHOCANO", "034731 - 88033 JOSE MARIA ARGUEDAS", "037876 - 88024", "037881 - 88028 ALMIRANTE MIGUEL GRAU", "038084 - 88042"], "ODS APURIMAC": ["042081 - 01 SANTA TERESITA DEL NIÑO JESUS", "042095 - 02 MARIA INMACULADA", "042104 - 03 MICAELA BASTIDAS PUYUCAHUA", "042123 - 06 NUESTRA SEÑORA DEL CARMEN", "042137 - 07 SAGRADA FAMILIA DEL NIÑO JESUS", "042156 - 92 REYNA DE LOS ANGELES", "042279 - 199 DIVINA PROVIDENCIA", "042284 - 213 LAS INTIMPAS", "042316 - 220 HUELLITAS DE SANTA ROSA", "042335 - SANTA ROSA", "042378 - 54004 FRAY ARMANDO BONIFAZ", "042383 - 54005 MIGUEL GRAU", "042397 - 54006 SAGRADO CORAZON DE JESUS", "042420 - VILLA GLORIA", "042439 - 54010", "042482 - 54043 CESAR ABRAHAM VALLEJO (SECUNDARIA)", "042552 - NUESTRA SEÑORA DE LAS MERCEDES (PRIMARIA)", "042608 - 54729 NUESTRA SEÑORA DE FATIMA", "042632 - 55001 MANUEL JESUS SIERRA A.", "042651 - 150", "044424 - 05 ANGELITOS DE LA GUARDA", "044481 - 54036 SEÑOR DE LA EXALTACION", "044495 - MICAELA BASTIDAS PUYUCAHUA (PRIMARIA)", "044551 - MICAELA BASTIDAS PUYUCAHUA (SECUNDARIA)", "562482 - 732", "577855 - 54905 SUR AMERICA", "653892 - 1092 MARIA JESUS DE ICHUBAMBILLA", "779014 - 54003 NUESTRA SEÑORA DEL ROSARIO", "864385 - NUESTRA SEÑORA DE LAS MERCEDES (SECUNDARIA)", "864408 - 54043 CESAR ABRAHAM VALLEJO (PRIMARIA)"], "ODS AREQUIPA": ["055276 - 40002 AL AIRE LIBRE", "055281 - 40007 GILBERTO OCHOA GALDOS", "055323 - 40015 VALLECITO", "055356 - 40025 SANTA DOROTEA", "055399 - 40042 REPUBLICA DE FRANCIA", "055422 - 41003 ALMIRANTE MIGUEL GRAU", "055436 - 41005 HEROES DE ANGAMOS", "055441 - 40165 SAN JUAN BAUTISTA DE LA SALLE", "055455 - 41008 MANUEL MUÑOZ NAJAR", "055479 - 41014 FORTUNATA GUTIERREZ DE BERNED", "055506 - NUESTRA SEÑORA DE LA ASUNCION", "055511 - 41019 REPUBLICA DE VENEZUELA", "055610 - MICAELA BASTIDAS", "059401 - 40053 MANUEL A. TAPIA FUENTES", "059482 - GRAN PACHACUTEC", "061201 - 40129 MANUEL VERAMENDI E HIDALGO", "061381 - RAFAEL LOAYZA GUEVARA", "062502 - 40163 BENIGNO BALLON FARFAN", "062516 - 40164 JOSE CARLOS MARIATEGUI", "062880 - NUESTRA SEÑORA DE COPACABANA", "064054 - 40204 NESTOR CACERES VELASQUEZ", "064073 - 40221 CORAZON DE JESUS", "064087 - 40256 CARLOS MANCHEGO RENDON", "065572 - 40038 JORGE BASADRE GROHMANN", "065586 - 40121 EVERARDO ZAPATA SANTILLANA", "065633 - 40175 GRAN LIBERTADOR SIMON BOLIVAR", "065652 - 40631 JUAN PABLO II", "065732 - INMACULADA CONCEPCION", "472599 - EL GRAN MAESTRO", "550403 - 40701"], "ODS AYACUCHO": ["074133 - LUIS CARRANZA", "074152 - 38006 9 DE DICIEMBRE", "075401 - 38023 NUESTRA SEÑORA DEL CARMEN", "075458 - 38984-8", "076410 - 38057", "079357 - 38254 LUIS CAVERO BENDEZU", "079376 - 38256 MARIA URRIBARRI GOMEZ", "079461 - SAN FRANCISCO DE ASIS", "079814 - 38880 MADRE TERESA DE CALCUTA", "562359 - JUAN MENDOZA QUISPE", "571556 - 429-30", "856502 - SAN JUAN DE LA FRONTERA"], "ODS TUMBES": ["090500 - 130", "490070 - 065 LA CABAÑITA", "490169 - 001 JOSE LISHNER TUDELA", "490206 - 006 MERCEDES MATILDE AVALOS DE HERRERA", "490305 - 054 FERMINA CAMPANA DE ZUÑIGA", "490310 - 116 MANUEL ANTONIO BONILLA VERA", "490353 - 138 EDUARDO AVALOS BUSTAMANTE", "490414 - REPUBLICA DEL PERU", "491036 - TECNICO 7 DE ENERO", "492583 - 094 SOTERITO LOPEZ ESPINOZA", "811090 - JULIO CESAR OLIVERA PAREDES", "811170 - PERU - CANADA"], "ODS CAJAMARCA": ["093867 - 105 PACHACUTEC", "094112 - 82001 SAN RAMON", "094145 - NUESTRA SEÑORA DE LA MERCED", "094150 - 82004 ZULEMA ARCE SANTISTEBAN", "094193 - 82012", "094287 - 82031", "094433 - 82594", "094800 - 83003 SAN FRANCISCO", "094895 - RAFAEL LOAYZA GUEVARA", "095480 - 251 CORAZON DE MARIA", "525574 - GENERAL DE DIVISION RAFAEL HOYOS RUBIO", "570104 - DOS DE MAYO"], "OAU CALLAO": ["144522 - 4021", "144541 - 5052 VIRGEN DE LA MERCED", "144616 - 5091 HIJOS DE GRAU", "144640 - 5096", "144659 - 5098 KUMAMOTO", "144683 - MANUEL SEOANE CORRALES", "144744 - 5117 JORGE PORTOCARRERO REBAZA", "144819 - 5125", "144824 - 5124 LIBERTADOR SIMON BOLIVAR", "291264 - 2062 ANDRES AVELINO CACERES", "291283 - 3069 GENERALISIMO JOSE DE SAN MARTIN", "291301 - CARLOS GUTIERREZ MERINO", "340047 - 892", "506472 - 5127 MARTIR JOSE OLAYA", "514014 - 5151 SAN JUAN BOSCO", "587637 - 120 LAS CASUARINAS", "593539 - 5129 VENCEDORES DE PACHACUTEC", "593638 - 5128 SAGRADO CORAZON DE MARIA", "593676 - 122 CARITAS FELICES", "593940 - 5130 PACHACUTEC", "593959 - 5130-1 LOS LICENCIADOS", "594039 - 5130-4 CHAVINILLO", "594157 - 5145", "594459 - 5138 DEFENSORES DE LA PATRIA", "594534 - 5137", "595411 - 5140 PRESIDENTE DE LA REPUBLICA DE COLOMBIA - DR ALVARO URIBE VELEZ", "614235 - 142", "654924 - 152", "852434 - 121 ANGELITOS DE PACHACUTEC", "901712 - 5156 ELIAS AGUIRRE ROMERO"], "ODS CUSCO": ["145946 - 50859", "146007 - 50707 SIMON BOLIVAR", "146205 - 50022 JORGE CHAVEZ CHAPARRO", "146267 - EL NIÑO DIVINO", "146371 - 51012 JULIO ALBERTO PONCE ANTUNEZ DE MAYOLO", "146385 - 51015 SAN FRANCISCO DE BORJA", "147766 - 51037 VIRGEN DEL CARMEN", "148006 - VIRGEN DE FATIMA", "148351 - 50780 SOL RADIANTE", "148370 - 463", "148619 - 50005", "727181 - 1198"], "ODS HUANCAVELICA": ["171351 - 138", "171445 - 269", "171488 - 36001", "171515 - 36005 JUAN VERGARA VILLAFUERTE", "171563 - 36010", "171704 - 36635", "171723 - 37001", "171756 - AMERICA", "171761 - MICAELA BASTIDAS PUYUCAHUA", "171775 - FRANCISCA DIEZ CANSECO DE CASTILLA", "171803 - 36556", "613151 - 36011 ARTEMIO REY SANCHEZ JARA"], "ODS HUANUCO": ["189921 - 32008 SEÑOR DE LOS MILAGROS", "189935 - 32011 HERMILIO VALDIZAN", "189940 - 32013 PEDRO SANCHEZ GAVIDIA", "190038 - 32814 MIGUEL GRAU SEMINARIO", "190142 - 32046 DANIEL ALOMIA ROBLES", "190156 - 33012", "190180 - 33074 HEROES DE JACTAY", "190302 - INDUSTRIAL HERMILIO VALDIZAN", "190335 - GRAN UNIDAD ESCOLAR LEONCIO PRADO", "190383 - NUESTRA SEÑORA DE LAS MERCEDES", "191405 - CESAR VALLEJO", "191472 - MARINO ADRIAN MEZA ROSALES"], "ODS ICA": ["213983 - JOHN F. KENNEDY", "215185 - 22247 JUAN XXIII", "215618 - 22253", "216415 - 22262 SERGIO BAUTISTA QUISPE", "216707 - 22419 JOSE ABELARDO QUIÑONES GONZALES", "217453 - 22560 MARIA PARADO DE BELLIDO", "218320 - 22488 JORGE CHAVEZ DARTNELL", "218344 - 22544 PEDRO PABLO CASTRO PELAEZ", "219579 - CAP. FAP JOSE ABELARDO QUIÑONES GONZALES", "555575 - MAXIMO DE LA CRUZ SOLORZANO", "634422 - 22704 SEÑOR DE LA DIVINA MISERICORDIA", "634460 - 22305 JULIO CESAR TELLO"], "ODS LA LIBERTAD": ["250008 - 81001 REPUBLICA DE PANAMA", "250094 - 81011 ANTONIO RAYMONDI", "250334 - MARIANO SANTOS MATEO", "250367 - 81584 EVERARDO ZAPATA SANTILLANA", "252743 - 80030 VICTOR RAUL HAYA DE LA TORRE", "252781 - 80823 EL INDOAMERICANO", "252899 - 82049 RAMON CASTILLA MARQUESADO", "253479 - 80081 JULIO GUTIERREZ SOLARI", "253969 - 80041 JOSE CARLOS MARIATEGUI", "255483 - 80089 SEÑOR DE HUAMAN", "255510 - 81017 SANTA EDELMIRA", "800275 - LIBERTAD"], "OAU COMAS": ["296737 - 8168 LOS ANGELES DE NARANJAL", "296761 - 8161 MANUEL SCORZA TORRE", "296803 - 3058 VIRGEN DE FATIMA", "296836 - 3057 SANTA ROSA DE CARABAYLLO", "296841 - RAUL PORRAS BARRENECHEA", "296860 - 3054 LA FLOR", "296898 - JOSE MARIA ARGUEDAS", "296978 - 3074 PEDRO RUIZ GALLO", "296983 - 5174 JUAN PABLO II", "296997 - 3519 PHILIP P. SAUNDERS", "301654 - 2040 REPUBLICA DE CUBA", "301668 - 2075 CRISTO HIJO DE DIOS", "301791 - CORONEL JOSE GALVEZ", "301809 - 2038 INCA GARCILASO DE LA VEGA", "301814 - 2031 JOSE VALVERDE CARO", "301871 - MARISCAL ANDRES AVELINO CACERES DORREGARAY", "305807 - 2034 REPUBLICA DE IRLANDA", "305850 - 2053 FRANCISCO BOLOGNESI CERVANTES", "305869 - 2054 NUESTRA SEÑORA DE FATIMA", "306005 - REPUBLICA DE COLOMBIA", "306010 - LIBERTADOR SAN MARTIN", "319041 - 8178", "319178 - 2076 ABRAHAM LINCOLN", "319197 - 5182 SEÑOR DE LOS MILAGROS", "319296 - 5171 TUPAC AMARU II", "319300 - 5172 HIJOS DE LUYA", "319442 - 8183 PITAGORAS", "320582 - 0392-3 SAN CRISTOBAL", "708371 - 8188 FE Y ESPERANZA", "837603 - MI PEQUEÑO MUNDO"], "OAU VILLA EL SALVADOR": ["314982 - 6008 JOSE ANTONIO DAPELO", "315043 - JOSE FAUSTINO SANCHEZ CARRION", "318145 - 668 ROXANITA CASTRO WITTING", "318211 - 6007", "318254 - 7102 SAN FRANCISCO DE ASIS", "318273 - 7259 VICTOR R. HAYA DE LA TORRE", "318305 - ISAIAS ARDILES", "318334 - 7262 MI NUEVO PERU", "318517 - 7257 MENOTTI BIFFI GARIBOTTO", "318536 - 6010 HILDA B. CARRILLO AGAPITO", "318555 - MANUEL CALVO Y PEREZ", "320445 - 6027 CAPITAN FAP RUDY ECHEGARAY FAJARDO", "329714 - 7041 VIRGEN DE LA MERCED", "329771 - 7067 TORIBIO SEMINARIO", "329813 - 7081 JOSE MARIA ARGUEDAS A", "329945 - 7230", "343913 - 7090 FORJADORES DEL PERU", "346313 - 7226-562 JOSE OLAYA BALANDRA", "346501 - 652 30", "346544 - 6019 MARIANO MELGAR", "346577 - 6024 JOSE MARIA ARGUEDAS", "346624 - 6057 VIRGEN DE LOURDES", "346662 - 6073 JORGE BASADRE (PRIMARIA)", "346695 - 6152 STELLA MARIS", "346718 - 7054", "346761 - 7088 VICE-ALMIRANTE GERONIMO CAFFERATA MARAZZI", "346822 - 7231", "346860 - JUAN GUERRERO QUIMPER", "686576 - 6073 JORGE BASADRE (SECUNDARIA)", "687533 - 7265"], "OAU CAÑETE": ["351842 - 21530", "351861 - 20188", "351880 - 20190 REPUBLICA DE CHILE", "351899 - 20191 ALFONSO UGARTE", "351903 - 20193", "351941 - 20872", "352002 - JOSE BUENAVENTURA SEPULVEDA", "352436 - 20125 NUESTRA SEÑORA DEL ROSARIO", "352974 - 20798", "352988 - 21001 ZOILO CANDELA SANCHEZ", "353030 - 20147 ELADIO HURTADO VICENTE", "353049 - 20935", "353068 - IMPERIAL C.N.I.", "353073 - NUESTRA SEÑORA DEL CARMEN", "353493 - 20927", "353515 - 483", "353544 - 608", "353558 - 20796", "353577 - 21015", "353582 - 20158 DOS DE MAYO", "353596 - DIONISIO MANCO CAMPOS", "353860 - 20163 JORGE CHAVEZ DARTNELL", "353935 - AUGUSTO B. LEGUIA", "354082 - 320", "354157 - 20178 SANTA ROSA DE LIMA", "354195 - 20964 VIRGEN DE FATIMA", "354223 - 619", "354299 - 20179 ALEJANDRO CAMACHO CUYA", "730329 - 440", "818379 - 20244 BUENOS AIRES"], "ODS LORETO": ["364137 - 179 EL PILOTO", "365306 - 60050 REPUBLICA DE VENEZUELA", "365330 - 60055 SERAFIN FILOMENO", "366018 - 61002 ANDRES BELLO", "366037 - 61004 JUAN PABLO II", "366198 - 601092 FRANCISCO BOLOGNESI CERVANTES", "366810 - 6010275 FRANCISCO SECADA VIGNETTA", "367070 - MAYNAS", "367193 - 601491 MADRE TERESA DE CALCUTA", "373373 - 60052 GENERALISIMO JOSE DE SAN MARTIN", "740663 - SAGRADO CORAZON (PRIMARIA)", "813131 - LORETO"], "ODS MADRE DE DIOS": ["394021 - 52020 CAP. FAP JOSE ABELARDO QUIÑONES", "394177 - 52001 SANTA ROSA", "394243 - LA PASTORA", "394276 - DOS DE MAYO", "394573 - 52194 CAPITAN ALIPIO PONCE VASQUEZ", "394587 - FAUSTINO MALDONADO", "394592 - AUGUSTO BOURONCLE ACUÑA", "394605 - CARLOS FERMIN FITZCARRALD", "394629 - EMBLEMATICO GUILLERMO BILLINGHURST", "395285 - 52094 ALMIRANTE MIGUEL GRAU SEMINARIO", "533753 - CAP. ALIPIO PONCE VASQUEZ", "768614 - 414"], "ODS MOQUEGUA": ["396845 - LUIS E. PINTO SOTOMAYOR", "396850 - SIMON BOLIVAR", "396893 - 43014 ANGELA BARRIOS DE ESPINOZA", "396911 - 43018 MARIANO LINO URQUIETA", "396930 - 43025 ADELAIDA MENDOZA DE BARRIOS", "396968 - 43013", "397005 - MARISCAL DOMINGO NIETO", "399716 - CORONEL FRANCISCO BOLOGNESI CERVANTES", "399721 - DANIEL BECERRA OCAMPO", "399815 - 43026 CARLOS ALBERTO CONDE VASQUEZ", "400079 - AMERICO GARIBALDI GHERSI", "758648 - FERNANDO BELAUNDE TERRY"], "ODS PASCO": ["400135 - 34004 LORENZO ROCKOVICH MINAYA", "400183 - 35001 CIPRIANO PROAÑO", "400197 - 03 ANTENOR RIZO PATRON LEQUERICA", "400215 - DANIEL ALCIDES CARRION", "400258 - GAMANIEL BLANCO MURILLO", "400277 - ANGEL DE MARIA", "400296 - 31756 RICARDO PALMA", "403252 - 34047 CESAR VALLEJO", "403351 - 34052 JOSE ANTONIO ENCINAS FRANCO", "403426 - 34305", "403577 - SANTA ROSA DE LIMA", "403619 - 31775 ALMIRANTE GRAU"], "ODS PIURA": ["410238 - COMPLEJO LA ALBORADA", "410380 - 14103", "410479 - FEDERICO HELGUERO SEMINARIO", "410530 - 20015 SAN SEBASTIAN", "410790 - ENRIQUE LOPEZ ALBUJAR", "412384 - 14112 AUGUSTO TIMANA SOSA", "412416 - 14116 SAN MARTIN DE PORRAS", "413294 - JOSE JACOBO CRUZ VILLEGAS", "413350 - 14037 SANTIAGO A REQUENA CASTRO", "413487 - FRAY MARTIN DE PORRES", "413519 - 20446", "429582 - SAN RAMON", "429600 - 14611 ROSA DE SANTA MARIA", "429624 - 14613 JORGE DUBERLY BENITES SANCHEZ", "429643 - 14615 LA INMACULADA", "429657 - 14616 SABINA CUEVA CASTILLO", "429902 - 15022 JUAN PALACIOS PINTADO", "430175 - 20431 SAGRADA FAMILIA", "435050 - MAYOR PNP (F) ROBERTO VICENTE MORALES ROJAS", "435253 - 14787 VICTOR RAUL HAYA DE LA TORRE", "435719 - JOSE MATIAS MANZANILLA", "437488 - ROSA CARDO DE GUARDERAS", "437596 - MARCAVELICA", "437676 - 20507", "437997 - 14860 DIVINO CORAZON DE JESUS", "438063 - 14871 INMACULADA CONCEPCION", "438124 - 20514 DULCE CORAZON DE MARIA", "505241 - 20534 SEÑOR CAUTIVO DE AYABACA", "507235 - 02 EL OBRERO", "766790 - 14036 SAN MIGUEL ARCANGEL"], "ODS PUNO": ["441305 - 70005 CORAZON DE JESUS", "441329 - 70013", "441433 - 70081", "441555 - 70717", "441640 - GLORIOSO SAN CARLOS", "463316 - 70541 VIRGEN DE FATIMA", "463439 - 70560 SEÑOR DE LOS MILAGROS", "463444 - 70561", "463707 - 70612", "463788 - 70620", "463806 - 70650", "649635 - 70700"], "ODS SAN MARTIN": ["471383 - 0199 SANTA ROSA", "471458 - 0180", "472882 - 0272 ANDRES REATEGUI REATEGUI", "472896 - 0274 LUISA SANCHEZ RAMIREZ", "473061 - 0660 JORGE RUIZ VEINTEMILLA", "481706 - TARAPOTO", "481848 - JOSE ANTONIO RAMIREZ AREVALO", "481872 - 0655 JOSE E. CELIS BARDALES", "483296 - VIRGEN DOLOROSA", "483395 - 0005", "483404 - 0031 MARIA ULISES DAVILA PINEDO", "798164 - 1291"], "ODS UCAYALI": ["493827 - 64007 SANTA ROSA", "493832 - 64008 EL ORIENTE", "493870 - 64017", "493907 - 64023", "493931 - 64026", "493988 - 64036", "494493 - 65139 LA PAZ-MONS. JUAN LUIS MARTIN BISSON", "495223 - 64975 - HUSARES DEL PERU", "495416 - LOS LIBERTADORES DE AMERICA", "495505 - NUESTRA SEÑORA DE GUADALUPE", "499546 - 64693 JOSE OLAYA BALANDRA", "814022 - 65100"]};
+
+function updateColegios(n) {
+  const oficina = document.getElementById('oficina' + n).value;
+  const sel = document.getElementById('colegio' + n);
+  if (!sel) return;
+  sel.innerHTML = '';
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = oficina ? '— Seleccionar IE —' : '— Selecciona oficina primero —';
+  sel.appendChild(placeholder);
+  if (oficina && COLEGIOS_MAP[oficina]) {
+    COLEGIOS_MAP[oficina].forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c; opt.textContent = c;
+      sel.appendChild(opt);
+    });
+  }
+}
+
+/* ── Populate selects ── */
+document.addEventListener('DOMContentLoaded', () => {
+  ['A','B','C','D','E'].forEach(n => {
+    const sel = document.getElementById('oficina' + n);
+    OFICINAS.forEach(o => {
+      const opt = document.createElement('option');
+      opt.value = o; opt.textContent = o;
+      sel.appendChild(opt);
+    });
+  });
+  loadUrl();
+});
+
+/* ══════════════ TOGGLE ══════════════ */
+function toggleCard(cardId) {
+  const card = document.getElementById(cardId);
+  const isActive = card.classList.contains('active');
+  document.querySelectorAll('.cause-card').forEach(c => c.classList.remove('active'));
+  if (!isActive) card.classList.add('active');
+}
+function stopBubble(e) { e.stopPropagation(); }
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.detail-panel').forEach(p => p.addEventListener('click', e => e.stopPropagation()));
+  document.querySelectorAll('.actor-tag').forEach(t => t.addEventListener('click', e => e.stopPropagation()));
+});
+
+/* ══════════════ COPY EMAIL ══════════════ */
+function doCopy(e, id) {
+  e.stopPropagation();
+  const text = document.getElementById(id).textContent || '';
+  const btn = e.currentTarget;
+  const ok  = () => { btn.classList.add('copied'); btn.innerHTML='✅ ¡Copiado!'; setTimeout(()=>{ btn.classList.remove('copied'); btn.innerHTML='📋 Copiar oficio'; }, 2500); };
+  const err = () => { btn.classList.add('err');    btn.innerHTML='❌ Error';      setTimeout(()=>{ btn.classList.remove('err');    btn.innerHTML='📋 Copiar oficio'; }, 2500); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(ok).catch(() => fallbackCopy(text, ok, err));
+  } else { fallbackCopy(text, ok, err); }
+}
+function fallbackCopy(text, ok, err) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    document.execCommand('copy') ? ok() : err();
+    document.body.removeChild(ta);
+  } catch(_) { err(); }
+}
+function copyCode() {
+  const text = document.getElementById('appsScriptCode').textContent;
+  const btn = event.currentTarget;
+  const ok = () => { btn.textContent='✅ Copiado'; setTimeout(()=>btn.textContent='📋 Copiar', 2500); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(ok);
+  } else { fallbackCopy(text, ok, ()=>{}); }
+}
+
+/* ══════════════ STATUS ══════════════ */
+function updateStatus(n) {
+  const sent  = document.getElementById('sent'  + n).value;
+  const reply = document.getElementById('reply' + n).value;
+  const badge = document.getElementById('badge' + n);
+  const plazo = BLOQUES_INFO[n].plazoDias;
+  if (reply) {
+    badge.className = 'seg-status-badge replied';
+    badge.textContent = '✅ CICLO CERRADO';
+  } else if (sent) {
+    const diffDays = (Date.now() - new Date(sent).getTime()) / 86400000;
+    if (diffDays > plazo) {
+      badge.className = 'seg-status-badge overdue';
+      badge.textContent = '⚠ SIN RESPUESTA — VENCIDO';
+    } else {
+      badge.className = 'seg-status-badge sent';
+      badge.textContent = '✉ ENVIADO — PENDIENTE RESPUESTA';
+    }
+  } else {
+    badge.className = 'seg-status-badge pending';
+    badge.textContent = 'SIN ENVIAR';
+  }
+}
+function resetStatus(n) {
+  document.getElementById('sent'  + n).value = '';
+  document.getElementById('reply' + n).value = '';
+  document.getElementById('notes' + n).value = '';
+  document.getElementById('oficina' + n).selectedIndex = 0;
+  const cs = document.getElementById('colegio' + n);
+  if (cs) { cs.innerHTML = '<option value="">— Selecciona oficina primero —</option>'; }
+  const badge = document.getElementById('badge' + n);
+  badge.className = 'seg-status-badge pending';
+  badge.textContent = 'SIN ENVIAR';
+  hideFeedback(n);
+}
+
+/* ══════════════ GOOGLE SHEETS ══════════════ */
+function openModal()  { document.getElementById('cfgModal').classList.remove('hidden'); }
+function closeModal() { document.getElementById('cfgModal').classList.add('hidden'); }
+
+const SHEETS_URL_DEFAULT = 'https://script.google.com/macros/s/AKfycbzeExJXOEvayCTLimQqRun-19CedFeiUEJvqN3SkWOQ19cxbtHeU81BQqku0V2yRqYQ/exec';
+
+function loadUrl() {
+  if (!localStorage.getItem('sunass_sheets_url_srv')) {
+    localStorage.setItem('sunass_sheets_url_srv', SHEETS_URL_DEFAULT);
+  }
+  document.getElementById('sheetsUrl').value = localStorage.getItem('sunass_sheets_url_srv');
+  setConnected(true);
+}
+function saveUrl() {
+  const url = document.getElementById('sheetsUrl').value.trim();
+  if (!url) { alert('Por favor ingresa la URL del Apps Script.'); return; }
+  localStorage.setItem('sunass_sheets_url_srv', url);
+  setConnected(true);
+  alert('✅ URL guardada. Recuerda que si actualizaste el script debes pegar aquí la NUEVA URL del deployment.');
+}
+function setConnected(yes) {
+  const btn    = document.getElementById('cfgBtnHeader');
+  const status = document.getElementById('connStatus');
+  const txt    = document.getElementById('connStatusText');
+  const dot    = status.querySelector('.conn-dot');
+  if (yes) {
+    btn.classList.add('connected');
+    btn.innerHTML = '🟢 Google Sheets conectado';
+    status.className = 'connection-status ok';
+    dot.style.background = 'var(--ok)';
+    txt.textContent = 'URL configurada — listo para enviar registros';
+  } else {
+    btn.classList.remove('connected');
+    btn.innerHTML = '⚙️ Conectar Google Sheets';
+    status.className = 'connection-status none';
+    dot.style.background = 'var(--danger)';
+    txt.textContent = 'Sin URL configurada';
+  }
+}
+
+function enviarRegistro(n, e) {
+  e.stopPropagation();
+  const url = localStorage.getItem('sunass_sheets_url_srv');
+  if (!url) { openModal(); showFeedback(n,'err','⚙️ Primero configura la URL de Google Sheets.'); return; }
+  const oficina = document.getElementById('oficina' + n).value;
+  if (!oficina) { showFeedback(n,'err','⚠ Selecciona una oficina antes de enviar.'); return; }
+
+  const info  = BLOQUES_INFO[n];
+  const badge = document.getElementById('badge' + n);
+  const data = {
+    oficina,
+    colegio:        (document.getElementById('colegio' + n) || {value:''}).value,
+    numCausa:       info.bloque,
+    causa:          info.problema,
+    actor:          info.actor,
+    estado:         badge.textContent.trim(),
+    fechaEnvio:     document.getElementById('sent'  + n).value || '',
+    fechaRespuesta: document.getElementById('reply' + n).value || '',
+    notas:          document.getElementById('notes' + n).value || ''
+  };
+
+  const btn = document.getElementById('sendbtn' + n);
+  btn.disabled = true;
+  btn.classList.add('sending');
+  btn.textContent = '⏳ Enviando...';
+  showFeedback(n, '', '');
+
+  const frameName = 'gsf_' + Date.now();
+  const iframe = document.createElement('iframe');
+  iframe.name = frameName;
+  iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;border:none;';
+  document.body.appendChild(iframe);
+
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = url;
+  form.target = frameName;
+  form.style.display = 'none';
+  Object.entries(data).forEach(([k,v]) => {
+    const inp = document.createElement('input');
+    inp.type='hidden'; inp.name=k; inp.value=v;
+    form.appendChild(inp);
+  });
+  document.body.appendChild(form);
+
+  const done = () => {
+    showFeedback(n,'ok','✅ Registro guardado en Google Sheets. Verifica la nueva fila en tu hoja.');
+    btn.disabled=false; btn.classList.remove('sending'); btn.textContent='📤 Enviar a Google Sheets';
+    setTimeout(()=>{ try{document.body.removeChild(form);document.body.removeChild(iframe);}catch(_){} },3000);
+  };
+
+  const timeout = setTimeout(done, 12000);
+  iframe.onload = function() { clearTimeout(timeout); done(); };
+
+  form.submit();
+}
+
+function showFeedback(n, type, msg) {
+  const el = document.getElementById('sfb' + n);
+  el.className = 'send-feedback' + (type ? ' '+type : '');
+  el.textContent = msg;
+}
+function hideFeedback(n) { showFeedback(n,'',''); }
+</script>
+</body>
+</html>
