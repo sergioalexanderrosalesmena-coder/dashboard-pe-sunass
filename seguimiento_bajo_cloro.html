@@ -308,7 +308,7 @@ SUNASS — Oficina de [NOMBRE DE OFICINA]
           </div>
           <div class="seg-divider"></div>
           <div class="seg-field" style="margin-bottom:10px">
-            <label>Notas de seguimiento</label>
+            <label>Notas de seguimiento (aclarar respuesta de la UGEL/DRE)</label>
             <textarea id="notes1" onclick="stopBubble(event)" placeholder=""></textarea>
           </div>
           <div class="seg-btns">
@@ -325,7 +325,7 @@ SUNASS — Oficina de [NOMBRE DE OFICINA]
   <div class="cause-card c2" id="card2">
     <div class="cause-header" onclick="toggleCard('card2')">
       <div class="cause-num">02</div>
-      <div class="cause-title">Baja continuidad del servicio</div>
+      <div class="cause-title">Baja continuidad del servicio<br><span style="font-size:11px;font-weight:400;color:var(--muted);">Según recibo de agua</span></div>
       <div class="cause-arrow">▼</div>
     </div>
     <div class="actor-tag"><div class="actor-dot"></div> Actor clave: EPS</div>
@@ -423,10 +423,10 @@ SUNASS — Oficina de [NOMBRE DE OFICINA]
   <div class="cause-card c3" id="card3">
     <div class="cause-header" onclick="toggleCard('card3')">
       <div class="cause-num">03</div>
-      <div class="cause-title">Corte del servicio</div>
+      <div class="cause-title">Corte del servicio<br><span style="font-size:11px;font-weight:400;color:var(--muted);">No programado</span></div>
       <div class="cause-arrow">▼</div>
     </div>
-    <div class="actor-tag"><div class="actor-dot"></div> Actor clave: EPS / SUNASS</div>
+    <div class="actor-tag"><div class="actor-dot"></div> Actor clave: EPS</div>
     <div class="detail-panel"><div class="detail-inner">
       <div>
         <div class="detail-label">Responsable de envío</div>
@@ -507,7 +507,7 @@ SUNASS — Oficina de [NOMBRE DE OFICINA]
           </div>
           <div class="seg-divider"></div>
           <div class="seg-field" style="margin-bottom:10px">
-            <label>Notas de seguimiento</label>
+            <label>Notas de seguimiento <span style="font-size:10px;font-weight:400;">(aclarar respuesta de la EPS y si el corte es por falta de pago o no)</span></label>
             <textarea id="notes3" onclick="stopBubble(event)" placeholder=""></textarea>
           </div>
           <div class="seg-btns">
@@ -527,7 +527,7 @@ SUNASS — Oficina de [NOMBRE DE OFICINA]
       <div class="cause-title">Mayor capacidad del reservorio</div>
       <div class="cause-arrow">▼</div>
     </div>
-    <div class="actor-tag"><div class="actor-dot"></div> Actor clave: Director IE / Gestor</div>
+    <div class="actor-tag"><div class="actor-dot"></div> Actor clave: UGEL / DRE</div>
     <div class="detail-panel"><div class="detail-inner">
       <div>
         <div class="detail-label">Responsable de envío</div>
@@ -599,7 +599,7 @@ SUNASS — Oficina de [NOMBRE DE OFICINA]
           </div>
           <div class="seg-divider"></div>
           <div class="seg-field" style="margin-bottom:10px">
-            <label>Notas de seguimiento</label>
+            <label>Notas de seguimiento (aclarar respuesta de la UGEL/DRE)</label>
             <textarea id="notes4" onclick="stopBubble(event)" placeholder=""></textarea>
           </div>
           <div class="seg-btns">
@@ -790,7 +790,7 @@ SUNASS — Oficina de [NOMBRE DE OFICINA]
           </div>
           <div class="seg-divider"></div>
           <div class="seg-field" style="margin-bottom:10px">
-            <label>Notas de seguimiento</label>
+            <label>Notas de seguimiento (aclarar respuesta de la UGEL/DRE)</label>
             <textarea id="notes6" onclick="stopBubble(event)" placeholder=""></textarea>
           </div>
           <div class="seg-btns">
@@ -808,8 +808,8 @@ SUNASS — Oficina de [NOMBRE DE OFICINA]
     <div class="legend-title">Actores clave</div>
     <div class="legend-item"><div class="legend-dot" style="background:#ff6464"></div> UGEL / DRE</div>
     <div class="legend-item"><div class="legend-dot" style="background:#f77f00"></div> EPS</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#ffc300"></div> EPS / SUNASS</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#00b4d8"></div> Director IE / Gestor</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#ffc300"></div> EPS</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#00b4d8"></div> UGEL / DRE</div>
     <div class="legend-item"><div class="legend-dot" style="background:#9664ff"></div> EPS (exigencia 24 h)</div>
     <div class="legend-item"><div class="legend-dot" style="background:#2ec4b6"></div> UGEL / Director IE</div>
   </div>
@@ -827,8 +827,8 @@ const OFICINAS = [
 const CAUSAS_INFO = {
   '1':{ numCausa:'01', causa:'Causa 1 — Antigüedad de la infraestructura',    actor:'UGEL / DRE',           plazo:15 },
   '2':{ numCausa:'02', causa:'Causa 2 — Baja continuidad del servicio',        actor:'EPS',                  plazo:2/24 },
-  '3':{ numCausa:'03', causa:'Causa 3 — Corte del servicio',                   actor:'EPS / SUNASS',         plazo:2/24 },
-  '4':{ numCausa:'04', causa:'Causa 4 — Mayor capacidad del reservorio',       actor:'Director IE / Gestor', plazo:15 },
+  '3':{ numCausa:'03', causa:'Causa 3 — Corte del servicio',                   actor:'EPS',                  plazo:2/24 },
+  '4':{ numCausa:'04', causa:'Causa 4 — Mayor capacidad del reservorio',       actor:'UGEL / DRE',           plazo:15 },
   '5':{ numCausa:'05', causa:'Causa 5 — Posible responsabilidad del prestador',actor:'EPS',                  plazo:1 },
   '6':{ numCausa:'06', causa:'Causa 6 — Falta de limpieza de reservorios',     actor:'UGEL / Director IE',   plazo:15 }
 };
