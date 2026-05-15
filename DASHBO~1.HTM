@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard de Cloro · OAU Cañete & ODS Cusco</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:#f4f6fa; --card:#fff; --ink:#1f2937; --muted:#6b7280;
+    --accent:#2563eb; --accent-dark:#1e40af;
+    --good:#16a34a; --good-soft:#dcfce7; --good-strong:#86efac;
+    --bad:#dc2626;  --bad-soft:#fee2e2;  --bad-strong:#fca5a5;
+    --border:#e5e7eb; --shadow:0 2px 8px rgba(15,23,42,.06);
+  }
+  *{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+  header{background:linear-gradient(135deg,var(--accent-dark),var(--accent));color:#fff;padding:24px 32px;box-shadow:var(--shadow)}
+  header h1{margin:0 0 4px;font-size:22px;font-weight:600}
+  header p{margin:0;opacity:.85;font-size:14px}
+  .container{max-width:1400px;margin:0 auto;padding:24px 32px}
+  .tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+  .tab{padding:9px 18px;border-radius:999px;background:#fff;border:1px solid var(--border);cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);transition:.15s}
+  .tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .filters{background:var(--card);border-radius:12px;padding:20px 24px;box-shadow:var(--shadow);margin-bottom:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+  .filter-group{display:flex;flex-direction:column;gap:6px}
+  .filter-group label{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .filter-group select{padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:#fff;color:var(--ink)}
+  .filter-group select:focus{outline:none;border-color:var(--accent)}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:20px}
+  .kpi{background:var(--card);border-radius:12px;padding:18px 20px;box-shadow:var(--shadow);border-left:4px solid var(--accent)}
+  .kpi.good{border-left-color:var(--good)} .kpi.bad{border-left-color:var(--bad)}
+  .kpi .label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+  .kpi .value{font-size:28px;font-weight:700;margin-top:4px}
+  .kpi .sub{font-size:12px;color:var(--muted);margin-top:2px}
+  .card{background:var(--card);border-radius:12px;padding:24px;box-shadow:var(--shadow);margin-bottom:20px}
+  .card h2{margin:0 0 16px;font-size:16px;font-weight:600}
+  .chart-wrap{position:relative;height:440px}
+  .legend-note{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-top:12px}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600}
+  .pill.good{background:var(--good-soft);color:var(--good)} .pill.bad{background:var(--bad-soft);color:var(--bad)}
+  table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
+  th{text-align:left;padding:10px 12px;background:#f9fafb;color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.3px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:2;white-space:nowrap}
+  td{padding:9px 12px;border-bottom:1px solid var(--border);background:#fff}
+  tr:hover td{background:#f9fafb}
+  td.val{text-align:center;font-weight:600;font-variant-numeric:tabular-nums;min-width:62px}
+  td.val.good{color:#065f46;background:var(--good-soft)} td.val.bad{color:#7f1d1d;background:var(--bad-soft)}
+  tr:hover td.val.good{background:var(--good-strong)} tr:hover td.val.bad{background:var(--bad-strong)}
+  .table-wrap{max-height:560px;overflow:auto;border:1px solid var(--border);border-radius:8px}
+  .pivot th.sticky-col,.pivot td.sticky-col{position:sticky;left:0;z-index:3;background:#fff;border-right:1px solid var(--border)}
+  .pivot th.sticky-col{z-index:4;background:#f9fafb}
+  .pivot th.date{font-size:11px;text-align:center;min-width:62px}
+  .empty{text-align:center;padding:40px;color:var(--muted)}
+  .view{display:none} .view.active{display:block}
+  .footer{text-align:center;padding:24px;font-size:12px;color:var(--muted)}
+  @media (max-width:700px){.container{padding:16px}header{padding:20px 16px}.chart-wrap{height:320px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Dashboard de Niveles de Cloro</h1>
+  <p>Monitoreo por oficina (OAU Cañete / ODS Cusco), colegio y fuente · Umbral mínimo: 0.5 mg/L</p>
+</header>
+
+<div class="container">
+
+  <div class="filters">
+    <div class="filter-group">
+      <label for="f-oficina">Oficina</label>
+      <select id="f-oficina"><option value="">Todas</option></select>
+    </div>
+    <div class="filter-group">
+      <label for="f-colegio">Colegio</label>
+      <select id="f-colegio"><option value="">Todos</option></select>
+    </div>
+    <div class="filter-group">
+      <label for="f-fuente">Fuente</label>
+      <select id="f-fuente">
+        <option value="">Todas las fuentes</option>
+        <option>Caño concurrido</option><option>Cocina</option>
+        <option>Quiosco</option><option>Salida de tanque</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label for="f-estado">Estado del cloro</label>
+      <select id="f-estado">
+        <option value="">Todos</option>
+        <option value="good">Solo cloro adecuado (≥ 0.5)</option>
+        <option value="bad">Solo cloro bajo (&lt; 0.5)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="label">Mediciones</div><div class="value" id="kpi-total">0</div><div class="sub">en la selección</div></div>
+    <div class="kpi good"><div class="label">Cloro adecuado</div><div class="value" id="kpi-good">0</div><div class="sub" id="kpi-good-sub">≥ 0.5 mg/L</div></div>
+    <div class="kpi bad"><div class="label">Cloro bajo</div><div class="value" id="kpi-bad">0</div><div class="sub" id="kpi-bad-sub">&lt; 0.5 mg/L</div></div>
+    <div class="kpi"><div class="label">Promedio</div><div class="value" id="kpi-avg">—</div><div class="sub">mg/L</div></div>
+    <div class="kpi"><div class="label">Colegios</div><div class="value" id="kpi-colegios">0</div><div class="sub">en la selección</div></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-view="grafico">📈 Gráfico de evolución</button>
+    <button class="tab" data-view="pivot">🗓 Tabla por fechas (horizontal)</button>
+    <button class="tab" data-view="detalle">📋 Detalle de mediciones</button>
+  </div>
+
+  <div id="view-grafico" class="view active card">
+    <h2>Evolución del cloro en el tiempo</h2>
+    <div class="chart-wrap"><canvas id="chart"></canvas></div>
+    <div class="legend-note">
+      <span><span class="pill good">● Verde</span> Cloro ≥ 0.5 mg/L</span>
+      <span><span class="pill bad">● Rojo</span> Cloro &lt; 0.5 mg/L</span>
+      <span>Línea punteada gris = umbral 0.5 mg/L</span>
+    </div>
+  </div>
+
+  <div id="view-pivot" class="view card">
+    <h2>Tabla por fechas (horizontal)</h2>
+    <p style="color:var(--muted);font-size:13px;margin-top:-8px">Cada fila es un Colegio + Fuente. Las columnas son las fechas en que se midió. Verde ≥ 0.5, rojo &lt; 0.5.</p>
+    <div class="table-wrap"><table class="pivot" id="pivot"><thead></thead><tbody></tbody></table></div>
+  </div>
+
+  <div id="view-detalle" class="view card">
+    <h2>Detalle de mediciones</h2>
+    <div class="table-wrap">
+      <table id="table-detalle">
+        <thead><tr><th>Fecha</th><th>Oficina</th><th>Distrito</th><th>Colegio</th><th>Fuente</th><th style="text-align:center">Cloro (mg/L)</th><th style="text-align:center">Estado</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footer">Dashboard autocontenido · Compártelo por correo, Drive o súbelo a cualquier servicio web</div>
+</div>
+
+<script>
+const DATA = [{"oficina": "OAU CAÑETE", "fecha": "2026-02-18", "distrito": "QUILMANA", "colegio": "320", "fuente": "Caño concurrido", "valor": 1.09}, {"oficina": "OAU CAÑETE", "fecha": "2026-02-23", "distrito": "MALA", "colegio": "20927", "fuente": "Caño concurrido", "valor": 0.74}, {"oficina": "OAU CAÑETE", "fecha": "2026-02-24", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "JOSE BUENAVENTURA SEPULVEDA", "fuente": "Caño concurrido", "valor": 0.84}, {"oficina": "OAU CAÑETE", "fecha": "2026-02-24", "distrito": "MALA", "colegio": "440", "fuente": "Caño concurrido", "valor": 1.09}, {"oficina": "OAU CAÑETE", "fecha": "2026-02-25", "distrito": "IMPERIAL", "colegio": "21001 ZOILO CANDELA SANCHEZ", "fuente": "Caño concurrido", "valor": 0.71}, {"oficina": "OAU CAÑETE", "fecha": "2026-02-25", "distrito": "IMPERIAL", "colegio": "IMPERIAL C.N.I.", "fuente": "Caño concurrido", "valor": 1.58}, {"oficina": "OAU CAÑETE", "fecha": "2026-02-26", "distrito": "IMPERIAL", "colegio": "20935", "fuente": "Caño concurrido", "valor": 0.85}, {"oficina": "OAU CAÑETE", "fecha": "2026-02-27", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "20190 REPUBLICA DE CHILE", "fuente": "Caño concurrido", "valor": 0.98}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-02", "distrito": "IMPERIAL", "colegio": "21001 ZOILO CANDELA SANCHEZ", "fuente": "Caño concurrido", "valor": 0.5}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-02", "distrito": "IMPERIAL", "colegio": "21001 ZOILO CANDELA SANCHEZ", "fuente": "Salida de tanque", "valor": 0.53}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-02", "distrito": "IMPERIAL", "colegio": "20935", "fuente": "Caño concurrido", "valor": 0.75}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-02", "distrito": "IMPERIAL", "colegio": "20935", "fuente": "Salida de tanque", "valor": 0.57}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-02", "distrito": "IMPERIAL", "colegio": "IMPERIAL C.N.I.", "fuente": "Caño concurrido", "valor": 1.08}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-02", "distrito": "IMPERIAL", "colegio": "IMPERIAL C.N.I.", "fuente": "Salida de tanque", "valor": 0.9}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-03", "distrito": "MALA", "colegio": "21015", "fuente": "Caño concurrido", "valor": 0.72}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-03", "distrito": "MALA", "colegio": "21015", "fuente": "Salida de tanque", "valor": 0.75}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-03", "distrito": "MALA", "colegio": "20927", "fuente": "Caño concurrido", "valor": 0.98}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-03", "distrito": "MALA", "colegio": "20927", "fuente": "Salida de tanque", "valor": 0.65}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-03", "distrito": "SAN ANTONIO", "colegio": "20179 ALEJANDRO CAMACHO CUYA", "fuente": "Caño concurrido", "valor": 0.53}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-05", "distrito": "IMPERIAL", "colegio": "NUESTRA SEÑORA DEL CARMEN", "fuente": "Caño concurrido", "valor": 0.98}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-06", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "20193", "fuente": "Caño concurrido", "valor": 0.77}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-06", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "20188", "fuente": "Caño concurrido", "valor": 0.93}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-06", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "20191 ALFONSO UGARTE", "fuente": "Caño concurrido", "valor": 0.91}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-09", "distrito": "IMPERIAL", "colegio": "20798", "fuente": "Caño concurrido", "valor": 0.62}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-09", "distrito": "IMPERIAL", "colegio": "20147 ELADIO HURTADO VICENTE", "fuente": "Caño concurrido", "valor": 1.31}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-09", "distrito": "NUEVO IMPERIAL", "colegio": "AUGUSTO B. LEGUIA", "fuente": "Caño concurrido", "valor": 0.7}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-10", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "JOSE BUENAVENTURA SEPULVEDA", "fuente": "Caño concurrido", "valor": 1.04}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-10", "distrito": "SAN ANTONIO", "colegio": "20179 ALEJANDRO CAMACHO CUYA", "fuente": "Caño concurrido", "valor": 1.28}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-10", "distrito": "QUILMANA", "colegio": "20178 SANTA ROSA DE LIMA", "fuente": "Caño concurrido", "valor": 0.87}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-11", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "21530", "fuente": "Caño concurrido", "valor": 1.43}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-11", "distrito": "MALA", "colegio": "20796", "fuente": "Caño concurrido", "valor": 1.02}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-11", "distrito": "MALA", "colegio": "DIONISIO MANCO CAMPOS", "fuente": "Caño concurrido", "valor": 0.96}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-12", "distrito": "QUILMANA", "colegio": "20964 VIRGEN DE FATIMA", "fuente": "Caño concurrido", "valor": 0.67}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-12", "distrito": "QUILMANA", "colegio": "619", "fuente": "Caño concurrido", "valor": 0.75}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-12", "distrito": "QUILMANA", "colegio": "20244 BUENOS AIRES", "fuente": "Caño concurrido", "valor": 0.57}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-13", "distrito": "MALA", "colegio": "483", "fuente": "Caño concurrido", "valor": 0.7}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-13", "distrito": "MALA", "colegio": "21015", "fuente": "Caño concurrido", "valor": 1.46}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-13", "distrito": "MALA", "colegio": "608", "fuente": "Caño concurrido", "valor": 0.95}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-16", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "20191 ALFONSO UGARTE", "fuente": "Caño concurrido", "valor": 0.92}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-16", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "20190 REPUBLICA DE CHILE", "fuente": "Caño concurrido", "valor": 0.92}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-16", "distrito": "ASIA", "colegio": "20125 NUESTRA SEÑORA DEL ROSARIO", "fuente": "Caño concurrido", "valor": 0.52}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-17", "distrito": "NUEVO IMPERIAL", "colegio": "AUGUSTO B. LEGUIA", "fuente": "Caño concurrido", "valor": 1.13}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-17", "distrito": "NUEVO IMPERIAL", "colegio": "20163 JORGE CHAVEZ DARTNELL", "fuente": "Caño concurrido", "valor": 0.52}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-17", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "20872", "fuente": "Caño concurrido", "valor": 1.22}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-18", "distrito": "MALA", "colegio": "20158 DOS DE MAYO", "fuente": "Caño concurrido", "valor": 0.73}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-18", "distrito": "MALA", "colegio": "440", "fuente": "Caño concurrido", "valor": 1.26}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-18", "distrito": "MALA", "colegio": "21015", "fuente": "Caño concurrido", "valor": 1.17}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-19", "distrito": "QUILMANA", "colegio": "320", "fuente": "Caño concurrido", "valor": 0.54}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-19", "distrito": "QUILMANA", "colegio": "20178 SANTA ROSA DE LIMA", "fuente": "Caño concurrido", "valor": 0.64}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-19", "distrito": "QUILMANA", "colegio": "619", "fuente": "Caño concurrido", "valor": 0.51}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-20", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "20188", "fuente": "Caño concurrido", "valor": 1.02}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-20", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "20191 ALFONSO UGARTE", "fuente": "Caño concurrido", "valor": 0.95}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-20", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "20193", "fuente": "Caño concurrido", "valor": 0.5}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-23", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "20872", "fuente": "Caño concurrido", "valor": 0.92}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-23", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "21530", "fuente": "Caño concurrido", "valor": 1.32}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-23", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "20190 REPUBLICA DE CHILE", "fuente": "Caño concurrido", "valor": 0.91}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-24", "distrito": "IMPERIAL", "colegio": "21001 ZOILO CANDELA SANCHEZ", "fuente": "Caño concurrido", "valor": 0.61}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-24", "distrito": "IMPERIAL", "colegio": "NUESTRA SEÑORA DEL CARMEN", "fuente": "Caño concurrido", "valor": 1.9}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-24", "distrito": "IMPERIAL", "colegio": "20935", "fuente": "Caño concurrido", "valor": 0.96}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-25", "distrito": "MALA", "colegio": "20796", "fuente": "Caño concurrido", "valor": 0.68}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-25", "distrito": "MALA", "colegio": "483", "fuente": "Caño concurrido", "valor": 0.51}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-25", "distrito": "MALA", "colegio": "DIONISIO MANCO CAMPOS", "fuente": "Caño concurrido", "valor": 0.61}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-26", "distrito": "IMPERIAL", "colegio": "20147 ELADIO HURTADO VICENTE", "fuente": "Caño concurrido", "valor": 1.3}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-26", "distrito": "NUEVO IMPERIAL", "colegio": "AUGUSTO B. LEGUIA", "fuente": "Caño concurrido", "valor": 1.22}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-26", "distrito": "NUEVO IMPERIAL", "colegio": "20163 JORGE CHAVEZ DARTNELL", "fuente": "Caño concurrido", "valor": 0.8}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-27", "distrito": "IMPERIAL", "colegio": "IMPERIAL C.N.I.", "fuente": "Caño concurrido", "valor": 1.16}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-27", "distrito": "IMPERIAL", "colegio": "20798", "fuente": "Caño concurrido", "valor": 1.55}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-27", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "JOSE BUENAVENTURA SEPULVEDA", "fuente": "Caño concurrido", "valor": 0.89}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-30", "distrito": "MALA", "colegio": "20927", "fuente": "Caño concurrido", "valor": 0.5}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-30", "distrito": "MALA", "colegio": "440", "fuente": "Caño concurrido", "valor": 0.67}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-30", "distrito": "MALA", "colegio": "21015", "fuente": "Caño concurrido", "valor": 0.52}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-31", "distrito": "QUILMANA", "colegio": "20244 BUENOS AIRES", "fuente": "Caño concurrido", "valor": 0.54}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-31", "distrito": "QUILMANA", "colegio": "619", "fuente": "Caño concurrido", "valor": 0.57}, {"oficina": "OAU CAÑETE", "fecha": "2026-03-31", "distrito": "QUILMANA", "colegio": "20964 VIRGEN DE FATIMA", "fuente": "Caño concurrido", "valor": 0.7}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-13", "distrito": "IMPERIAL", "colegio": "IMPERIAL C.N.I.", "fuente": "Caño concurrido", "valor": 1.67}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-14", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "20191 ALFONSO UGARTE", "fuente": "Caño concurrido", "valor": 0.92}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-14", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "20188", "fuente": "Caño concurrido", "valor": 0.99}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-15", "distrito": "SAN ANTONIO", "colegio": "20179 ALEJANDRO CAMACHO CUYA", "fuente": "Caño concurrido", "valor": 0.92}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-16", "distrito": "IMPERIAL", "colegio": "21001 ZOILO CANDELA SANCHEZ", "fuente": "Caño concurrido", "valor": 0.52}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-16", "distrito": "IMPERIAL", "colegio": "20147 ELADIO HURTADO VICENTE", "fuente": "Caño concurrido", "valor": 1.28}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-16", "distrito": "NUEVO IMPERIAL", "colegio": "20163 JORGE CHAVEZ DARTNELL", "fuente": "Caño concurrido", "valor": 0.78}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-16", "distrito": "NUEVO IMPERIAL", "colegio": "AUGUSTO B. LEGUIA", "fuente": "Caño concurrido", "valor": 0.96}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-17", "distrito": "MALA", "colegio": "20158 DOS DE MAYO", "fuente": "Caño concurrido", "valor": 0.27}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-17", "distrito": "MALA", "colegio": "20158 DOS DE MAYO", "fuente": "Cocina", "valor": 0.2}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-17", "distrito": "MALA", "colegio": "20927", "fuente": "Caño concurrido", "valor": 0.0}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-17", "distrito": "MALA", "colegio": "21015", "fuente": "Caño concurrido", "valor": 0.1}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-17", "distrito": "MALA", "colegio": "608", "fuente": "Caño concurrido", "valor": 0.5}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-17", "distrito": "MALA", "colegio": "DIONISIO MANCO CAMPOS", "fuente": "Caño concurrido", "valor": 0.65}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-21", "distrito": "IMPERIAL", "colegio": "20798", "fuente": "Caño concurrido", "valor": 0.84}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-21", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "21530", "fuente": "Caño concurrido", "valor": 1.02}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-21", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "20193", "fuente": "Caño concurrido", "valor": 0.5}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-21", "distrito": "ASIA", "colegio": "20125 NUESTRA SEÑORA DEL ROSARIO", "fuente": "Caño concurrido", "valor": 0.5}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-22", "distrito": "MALA", "colegio": "483", "fuente": "Caño concurrido", "valor": 0.5}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-22", "distrito": "MALA", "colegio": "20796", "fuente": "Caño concurrido", "valor": 0.5}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-22", "distrito": "MALA", "colegio": "440", "fuente": "Caño concurrido", "valor": 0.5}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-23", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "20188", "fuente": "Caño concurrido", "valor": 0.5}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-23", "distrito": "IMPERIAL", "colegio": "IMPERIAL C.N.I.", "fuente": "Caño concurrido", "valor": 0.5}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-23", "distrito": "NUEVO IMPERIAL", "colegio": "AUGUSTO B. LEGUIA", "fuente": "Caño concurrido", "valor": 0.5}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-23", "distrito": "NUEVO IMPERIAL", "colegio": "20163 JORGE CHAVEZ DARTNELL", "fuente": "Caño concurrido", "valor": 0.5}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-23", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "20191 ALFONSO UGARTE", "fuente": "Caño concurrido", "valor": 0.5}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-24", "distrito": "QUILMANA", "colegio": "320", "fuente": "Caño concurrido", "valor": 0.5}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-24", "distrito": "MALA", "colegio": "21015", "fuente": "Caño concurrido", "valor": 0.87}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-24", "distrito": "MALA", "colegio": "20158 DOS DE MAYO", "fuente": "Caño concurrido", "valor": 0.63}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-27", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "20190 REPUBLICA DE CHILE", "fuente": "Caño concurrido", "valor": 0.52}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-27", "distrito": "IMPERIAL", "colegio": "20935", "fuente": "Caño concurrido", "valor": 0.54}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-27", "distrito": "IMPERIAL", "colegio": "20798", "fuente": "Caño concurrido", "valor": 1.04}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-27", "distrito": "IMPERIAL", "colegio": "NUESTRA SEÑORA DEL CARMEN", "fuente": "Caño concurrido", "valor": 0.52}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-27", "distrito": "IMPERIAL", "colegio": "20147 ELADIO HURTADO VICENTE", "fuente": "Caño concurrido", "valor": 1.05}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-28", "distrito": "ASIA", "colegio": "20125 NUESTRA SEÑORA DEL ROSARIO", "fuente": "Caño concurrido", "valor": 0.69}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-28", "distrito": "QUILMANA", "colegio": "619", "fuente": "Caño concurrido", "valor": 0.71}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-28", "distrito": "QUILMANA", "colegio": "320", "fuente": "Caño concurrido", "valor": 0.63}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-28", "distrito": "MALA", "colegio": "20927", "fuente": "Caño concurrido", "valor": 1.1}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-28", "distrito": "MALA", "colegio": "608", "fuente": "Caño concurrido", "valor": 0.58}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-28", "distrito": "SAN ANTONIO", "colegio": "20179 ALEJANDRO CAMACHO CUYA", "fuente": "Caño concurrido", "valor": 0.92}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-29", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "20872", "fuente": "Caño concurrido", "valor": 0.53}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-29", "distrito": "QUILMANA", "colegio": "20964 VIRGEN DE FATIMA", "fuente": "Caño concurrido", "valor": 0.69}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-29", "distrito": "QUILMANA", "colegio": "20244 BUENOS AIRES", "fuente": "Caño concurrido", "valor": 0.81}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-29", "distrito": "QUILMANA", "colegio": "20178 SANTA ROSA DE LIMA", "fuente": "Caño concurrido", "valor": 0.79}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-30", "distrito": "MALA", "colegio": "21015", "fuente": "Caño concurrido", "valor": 0.91}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-30", "distrito": "MALA", "colegio": "DIONISIO MANCO CAMPOS", "fuente": "Caño concurrido", "valor": 0.8}, {"oficina": "OAU CAÑETE", "fecha": "2026-04-30", "distrito": "MALA", "colegio": "440", "fuente": "Caño concurrido", "valor": 1.12}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-01", "distrito": "IMPERIAL", "colegio": "NUESTRA SEÑORA DEL CARMEN", "fuente": "Caño concurrido", "valor": 0.67}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-01", "distrito": "MALA", "colegio": "20158 DOS DE MAYO", "fuente": "Caño concurrido", "valor": 0.62}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-01", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "20188", "fuente": "Caño concurrido", "valor": 0.74}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-04", "distrito": "QUILMANA", "colegio": "619", "fuente": "Caño concurrido", "valor": 0.23}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-04", "distrito": "QUILMANA", "colegio": "320", "fuente": "Caño concurrido", "valor": 0.39}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-04", "distrito": "QUILMANA", "colegio": "20178 SANTA ROSA DE LIMA", "fuente": "Caño concurrido", "valor": 0.5}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-05", "distrito": "IMPERIAL", "colegio": "21001 ZOILO CANDELA SANCHEZ", "fuente": "Caño concurrido", "valor": 0.53}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-05", "distrito": "QUILMANA", "colegio": "20244 BUENOS AIRES", "fuente": "Caño concurrido", "valor": 0.65}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-05", "distrito": "QUILMANA", "colegio": "20964 VIRGEN DE FATIMA", "fuente": "Caño concurrido", "valor": 0.77}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-06", "distrito": "IMPERIAL", "colegio": "20935", "fuente": "Caño concurrido", "valor": 0.55}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-06", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "21530", "fuente": "Caño concurrido", "valor": 1.0}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-06", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "20872", "fuente": "Caño concurrido", "valor": 0.74}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-07", "distrito": "MALA", "colegio": "483", "fuente": "Caño concurrido", "valor": 0.82}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-07", "distrito": "MALA", "colegio": "20796", "fuente": "Caño concurrido", "valor": 0.71}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-07", "distrito": "MALA", "colegio": "20927", "fuente": "Caño concurrido", "valor": 0.5}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-07", "distrito": "ASIA", "colegio": "20125 NUESTRA SEÑORA DEL ROSARIO", "fuente": "Caño concurrido", "valor": 0.57}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-08", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "20190 REPUBLICA DE CHILE", "fuente": "Caño concurrido", "valor": 0.72}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-08", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "JOSE BUENAVENTURA SEPULVEDA", "fuente": "Caño concurrido", "valor": 0.78}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-08", "distrito": "SAN ANTONIO", "colegio": "20179 ALEJANDRO CAMACHO CUYA", "fuente": "Caño concurrido", "valor": 0.97}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-11", "distrito": "IMPERIAL", "colegio": "20147 ELADIO HURTADO VICENTE", "fuente": "Caño concurrido", "valor": 0.61}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-11", "distrito": "IMPERIAL", "colegio": "IMPERIAL C.N.I.", "fuente": "Caño concurrido", "valor": 1.45}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-11", "distrito": "IMPERIAL", "colegio": "20798", "fuente": "Caño concurrido", "valor": 1.44}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-12", "distrito": "NUEVO IMPERIAL", "colegio": "AUGUSTO B. LEGUIA", "fuente": "Caño concurrido", "valor": 1.05}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-12", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "20193", "fuente": "Caño concurrido", "valor": 0.59}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-12", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "20191 ALFONSO UGARTE", "fuente": "Caño concurrido", "valor": 0.85}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-13", "distrito": "MALA", "colegio": "21015", "fuente": "Caño concurrido", "valor": 1.25}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-13", "distrito": "MALA", "colegio": "20796", "fuente": "Caño concurrido", "valor": 0.53}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-13", "distrito": "MALA", "colegio": "440", "fuente": "Caño concurrido", "valor": 1.45}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-14", "distrito": "MALA", "colegio": "608", "fuente": "Caño concurrido", "valor": 0.84}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-14", "distrito": "SAN VICENTE DE CAÑETE", "colegio": "JOSE BUENAVENTURA SEPULVEDA", "fuente": "Caño concurrido", "valor": 0.74}, {"oficina": "OAU CAÑETE", "fecha": "2026-05-14", "distrito": "MALA", "colegio": "DIONISIO MANCO CAMPOS", "fuente": "Caño concurrido", "valor": 0.83}, {"oficina": "ODS CUSCO", "fecha": "2026-03-09", "distrito": "CUSCO", "colegio": "51012 JULIO ALBERTO PONCE ANTUNEZ DE MAYOLO", "fuente": "Caño concurrido", "valor": 0.0}, {"oficina": "ODS CUSCO", "fecha": "2026-03-09", "distrito": "CUSCO", "colegio": "51012 JULIO ALBERTO PONCE ANTUNEZ DE MAYOLO", "fuente": "Cocina", "valor": 0.0}, {"oficina": "ODS CUSCO", "fecha": "2026-03-09", "distrito": "SAN SEBASTIAN", "colegio": "VIRGEN DE FATIMA", "fuente": "Caño concurrido", "valor": 0.7}, {"oficina": "ODS CUSCO", "fecha": "2026-05-06", "distrito": "SANTIAGO", "colegio": "463", "fuente": "Caño concurrido", "valor": 0.5}, {"oficina": "ODS CUSCO", "fecha": "2026-05-06", "distrito": "SANTIAGO", "colegio": "50780 SOL RADIANTE", "fuente": "Caño concurrido", "valor": 0.8}, {"oficina": "ODS CUSCO", "fecha": "2026-05-06", "distrito": "SANTIAGO", "colegio": "50005", "fuente": "Caño concurrido", "valor": 1.0}, {"oficina": "ODS CUSCO", "fecha": "2026-05-06", "distrito": "CUSCO", "colegio": "EL NIÑO DIVINO", "fuente": "Caño concurrido", "valor": 0.8}, {"oficina": "ODS CUSCO", "fecha": "2026-05-06", "distrito": "CUSCO", "colegio": "51012 JULIO ALBERTO PONCE ANTUNEZ DE MAYOLO", "fuente": "Caño concurrido", "valor": 0.5}, {"oficina": "ODS CUSCO", "fecha": "2026-05-06", "distrito": "CUSCO", "colegio": "50707 SIMON BOLIVAR", "fuente": "Caño concurrido", "valor": 0.5}, {"oficina": "ODS CUSCO", "fecha": "2026-05-06", "distrito": "CUSCO", "colegio": "1198", "fuente": "Caño concurrido", "valor": 0.8}, {"oficina": "ODS CUSCO", "fecha": "2026-05-06", "distrito": "CUSCO", "colegio": "51015 SAN FRANCISCO DE BORJA", "fuente": "Caño concurrido", "valor": 1.0}, {"oficina": "ODS CUSCO", "fecha": "2026-05-05", "distrito": "CUSCO", "colegio": "50022 JORGE CHAVEZ CHAPARRO", "fuente": "Caño concurrido", "valor": 1.0}, {"oficina": "ODS CUSCO", "fecha": "2026-04-15", "distrito": "CUSCO", "colegio": "51015 SAN FRANCISCO DE BORJA", "fuente": "Caño concurrido", "valor": 1.0}, {"oficina": "ODS CUSCO", "fecha": "2026-04-15", "distrito": "CUSCO", "colegio": "50859", "fuente": "Caño concurrido", "valor": 0.8}, {"oficina": "ODS CUSCO", "fecha": "2026-04-15", "distrito": "CUSCO", "colegio": "50022 JORGE CHAVEZ CHAPARRO", "fuente": "Caño concurrido", "valor": 0.8}, {"oficina": "ODS CUSCO", "fecha": "2026-04-09", "distrito": "CUSCO", "colegio": "51012 JULIO ALBERTO PONCE ANTUNEZ DE MAYOLO", "fuente": "Caño concurrido", "valor": 0.5}, {"oficina": "ODS CUSCO", "fecha": "2026-04-09", "distrito": "CUSCO", "colegio": "50707 SIMON BOLIVAR", "fuente": "Caño concurrido", "valor": 1.0}, {"oficina": "ODS CUSCO", "fecha": "2026-04-09", "distrito": "CUSCO", "colegio": "EL NIÑO DIVINO", "fuente": "Caño concurrido", "valor": 1.0}, {"oficina": "ODS CUSCO", "fecha": "2026-04-09", "distrito": "CUSCO", "colegio": "1198", "fuente": "Caño concurrido", "valor": 0.8}, {"oficina": "ODS CUSCO", "fecha": "2026-04-09", "distrito": "SANTIAGO", "colegio": "50005", "fuente": "Caño concurrido", "valor": 1.0}, {"oficina": "ODS CUSCO", "fecha": "2026-04-09", "distrito": "SANTIAGO", "colegio": "463", "fuente": "Caño concurrido", "valor": 1.0}, {"oficina": "ODS CUSCO", "fecha": "2026-04-09", "distrito": "SAN SEBASTIAN", "colegio": "VIRGEN DE FATIMA", "fuente": "Caño concurrido", "valor": 0.8}, {"oficina": "ODS CUSCO", "fecha": "2026-04-09", "distrito": "SAN JERONIMO", "colegio": "51037 VIRGEN DEL CARMEN", "fuente": "Caño concurrido", "valor": 1.0}, {"oficina": "ODS CUSCO", "fecha": "2026-03-10", "distrito": "SANTIAGO", "colegio": "463", "fuente": "Caño concurrido", "valor": 1.0}, {"oficina": "ODS CUSCO", "fecha": "2026-03-10", "distrito": "SAN JERONIMO", "colegio": "51037 VIRGEN DEL CARMEN", "fuente": "Caño concurrido", "valor": 0.8}, {"oficina": "ODS CUSCO", "fecha": "2026-03-09", "distrito": "CUSCO", "colegio": "50859", "fuente": "Caño concurrido", "valor": 1.0}, {"oficina": "ODS CUSCO", "fecha": "2026-03-09", "distrito": "CUSCO", "colegio": "EL NIÑO DIVINO", "fuente": "Caño concurrido", "valor": 0.8}, {"oficina": "ODS CUSCO", "fecha": "2026-03-09", "distrito": "CUSCO", "colegio": "50707 SIMON BOLIVAR", "fuente": "Caño concurrido", "valor": 0.9}, {"oficina": "ODS CUSCO", "fecha": "2026-03-09", "distrito": "CUSCO", "colegio": "1198", "fuente": "Caño concurrido", "valor": 0.7}, {"oficina": "ODS CUSCO", "fecha": "2026-05-05", "distrito": "CUSCO", "colegio": "50859", "fuente": "Caño concurrido", "valor": 0.8}, {"oficina": "ODS CUSCO", "fecha": "2026-05-05", "distrito": "SAN JERONIMO", "colegio": "51037 VIRGEN DEL CARMEN", "fuente": "Caño concurrido", "valor": 0.8}, {"oficina": "ODS CUSCO", "fecha": "2026-05-05", "distrito": "SAN SEBASTIAN", "colegio": "VIRGEN DE FATIMA", "fuente": "Caño concurrido", "valor": 0.8}, {"oficina": "ODS CUSCO", "fecha": "2026-04-09", "distrito": "SANTIAGO", "colegio": "50780 SOL RADIANTE", "fuente": "Caño concurrido", "valor": 0.8}, {"oficina": "ODS CUSCO", "fecha": "2026-03-09", "distrito": "CUSCO", "colegio": "50022 JORGE CHAVEZ CHAPARRO", "fuente": "Caño concurrido", "valor": 0.7}, {"oficina": "ODS CUSCO", "fecha": "2026-03-09", "distrito": "CUSCO", "colegio": "51015 SAN FRANCISCO DE BORJA", "fuente": "Caño concurrido", "valor": 0.8}, {"oficina": "ODS CUSCO", "fecha": "2026-03-09", "distrito": "SANTIAGO", "colegio": "50005", "fuente": "Caño concurrido", "valor": 0.6}, {"oficina": "ODS CUSCO", "fecha": "2026-03-09", "distrito": "SANTIAGO", "colegio": "50780 SOL RADIANTE", "fuente": "Caño concurrido", "valor": 0.5}];
+
+const FUENTES = ['Caño concurrido','Cocina','Quiosco','Salida de tanque'];
+const COLORS = {'Caño concurrido':'#2563eb','Cocina':'#f59e0b','Quiosco':'#8b5cf6','Salida de tanque':'#0891b2'};
+
+const elOficina = document.getElementById('f-oficina');
+const elColegio = document.getElementById('f-colegio');
+const elFuente  = document.getElementById('f-fuente');
+const elEstado  = document.getElementById('f-estado');
+
+[...new Set(DATA.map(r=>r.oficina))].sort().forEach(o=>{
+  const opt=document.createElement('option');opt.value=o;opt.textContent=o;elOficina.appendChild(opt);
+});
+
+function refreshColegios(){
+  const ofi=elOficina.value, current=elColegio.value;
+  elColegio.innerHTML='<option value="">Todos</option>';
+  const src=ofi?DATA.filter(r=>r.oficina===ofi):DATA;
+  [...new Set(src.map(r=>r.colegio))].sort().forEach(c=>{
+    const opt=document.createElement('option');opt.value=c;opt.textContent=c;elColegio.appendChild(opt);
+  });
+  if([...elColegio.options].some(o=>o.value===current))elColegio.value=current;
+}
+refreshColegios();
+
+function filtered(){
+  const ofi=elOficina.value, col=elColegio.value, fue=elFuente.value, est=elEstado.value;
+  return DATA.filter(r=>{
+    if(ofi&&r.oficina!==ofi)return false;
+    if(col&&r.colegio!==col)return false;
+    if(fue&&r.fuente!==fue)return false;
+    if(est==='good'&&r.valor<0.5)return false;
+    if(est==='bad'&&r.valor>=0.5)return false;
+    return true;
+  });
+}
+
+function fmtDate(s){
+  // s = "YYYY-MM-DD"
+  const [y,m,d]=s.split('-');
+  const meses=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Set','Oct','Nov','Dic'];
+  return `${d} ${meses[+m-1]}`;
+}
+
+let chart;
+function renderChart(rows){
+  const colegio=elColegio.value, fuente=elFuente.value;
+  // Master sorted list of dates appearing in the rows
+  const allDates=[...new Set(rows.map(r=>r.fecha))].sort();
+
+  let datasets=[];
+  if(colegio){
+    // One dataset per fuente (or just the chosen one) for this colegio
+    const fuentes=fuente?[fuente]:FUENTES;
+    fuentes.forEach(f=>{
+      const map={}; rows.filter(r=>r.fuente===f).forEach(r=>{map[r.fecha]=r.valor});
+      const dataArr=allDates.map(d=>map[d]??null);
+      if(dataArr.some(v=>v!==null))
+        datasets.push({
+          label:f, data:dataArr,
+          borderColor:COLORS[f], backgroundColor:COLORS[f]+'25',
+          tension:.25, spanGaps:true, borderWidth:2, pointRadius:5, pointHoverRadius:7,
+          pointBackgroundColor:dataArr.map(v=>v==null?'rgba(0,0,0,0)':(v>=0.5?'#16a34a':'#dc2626')),
+          pointBorderColor:dataArr.map(v=>v==null?'rgba(0,0,0,0)':(v>=0.5?'#16a34a':'#dc2626')),
+        });
+    });
+  } else {
+    // No colegio: average per date per fuente
+    const fuentes=fuente?[fuente]:FUENTES;
+    fuentes.forEach(f=>{
+      const byDate={}; rows.filter(r=>r.fuente===f).forEach(r=>{(byDate[r.fecha]??=[]).push(r.valor)});
+      const dataArr=allDates.map(d=>byDate[d]?byDate[d].reduce((a,b)=>a+b,0)/byDate[d].length:null);
+      if(dataArr.some(v=>v!==null))
+        datasets.push({
+          label:f+' (promedio diario)', data:dataArr,
+          borderColor:COLORS[f], backgroundColor:COLORS[f]+'25',
+          tension:.25, spanGaps:true, borderWidth:2, pointRadius:5, pointHoverRadius:7,
+          pointBackgroundColor:dataArr.map(v=>v==null?'rgba(0,0,0,0)':(v>=0.5?'#16a34a':'#dc2626')),
+          pointBorderColor:dataArr.map(v=>v==null?'rgba(0,0,0,0)':(v>=0.5?'#16a34a':'#dc2626')),
+        });
+    });
+  }
+
+  const labels=allDates.map(fmtDate);
+  if(chart)chart.destroy();
+  const ctx=document.getElementById('chart').getContext('2d');
+  chart=new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'nearest',intersect:false},
+      plugins:{
+        legend:{position:'bottom',labels:{boxWidth:12,padding:14,font:{size:12}}},
+        tooltip:{callbacks:{
+          title:(items)=>allDates[items[0].dataIndex],
+          label:(item)=>{
+            const v=item.parsed.y;
+            return `${item.dataset.label}: ${v.toFixed(2)} mg/L · ${v>=0.5?'✓ Adecuado':'⚠ Bajo'}`;
+          }
+        }}
+      },
+      scales:{
+        x:{title:{display:true,text:'Fecha'},grid:{color:'#f3f4f6'},ticks:{maxRotation:60,autoSkip:true,maxTicksLimit:18}},
+        y:{beginAtZero:true,suggestedMax:2,title:{display:true,text:'Cloro residual (mg/L)'},grid:{color:'#f3f4f6'}}
+      }
+    },
+    plugins:[{
+      id:'threshold',
+      afterDraw:(c)=>{
+        const ys=c.scales.y, xs=c.scales.x; if(!ys||!xs)return;
+        const y=ys.getPixelForValue(0.5);
+        const x=c.ctx;
+        x.save();
+        x.strokeStyle='#9ca3af'; x.lineWidth=1.5; x.setLineDash([6,4]);
+        x.beginPath(); x.moveTo(xs.left,y); x.lineTo(xs.right,y); x.stroke();
+        x.setLineDash([]);
+        x.fillStyle='#6b7280'; x.font='11px sans-serif';
+        x.fillText('Umbral 0.5 mg/L', xs.right-110, y-4);
+        x.restore();
+      }
+    }]
+  });
+}
+
+function renderPivot(rows){
+  const thead=document.querySelector('#pivot thead');
+  const tbody=document.querySelector('#pivot tbody');
+  thead.innerHTML=''; tbody.innerHTML='';
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="5" class="empty">No hay mediciones con los filtros actuales.</td></tr>';return;}
+  const dates=[...new Set(rows.map(r=>r.fecha))].sort();
+  // Build key map: "colegio||fuente" -> {fecha:valor}
+  const keys=new Map();
+  rows.forEach(r=>{
+    const k=r.oficina+'||'+r.colegio+'||'+r.fuente;
+    if(!keys.has(k))keys.set(k,{oficina:r.oficina,colegio:r.colegio,fuente:r.fuente,vals:{}});
+    keys.get(k).vals[r.fecha]=r.valor;
+  });
+  const fuenteOrden={'Caño concurrido':1,'Cocina':2,'Quiosco':3,'Salida de tanque':4};
+  const sorted=[...keys.values()].sort((a,b)=>
+    a.oficina.localeCompare(b.oficina)||a.colegio.localeCompare(b.colegio)||(fuenteOrden[a.fuente]-fuenteOrden[b.fuente])
+  );
+
+  // Header
+  const trH=document.createElement('tr');
+  trH.innerHTML='<th class="sticky-col">Oficina</th><th class="sticky-col" style="left:90px">Colegio</th><th class="sticky-col" style="left:330px">Fuente</th>';
+  dates.forEach(d=>{const th=document.createElement('th');th.className='date';th.textContent=fmtDate(d);trH.appendChild(th)});
+  thead.appendChild(trH);
+  // Sticky offset adjust via CSS variable-ish approach: easier — set left inline
+  // Already set above with rough widths.
+
+  // Rows
+  const frag=document.createDocumentFragment();
+  sorted.forEach(k=>{
+    const tr=document.createElement('tr');
+    const ofiTd=`<td class="sticky-col">${k.oficina}</td>`;
+    const colTd=`<td class="sticky-col" style="left:90px">${k.colegio}</td>`;
+    const fueTd=`<td class="sticky-col" style="left:330px">${k.fuente}</td>`;
+    let cells=ofiTd+colTd+fueTd;
+    dates.forEach(d=>{
+      const v=k.vals[d];
+      if(v==null) cells+='<td class="val"></td>';
+      else cells+=`<td class="val ${v>=0.5?'good':'bad'}">${v.toFixed(2)}</td>`;
+    });
+    tr.innerHTML=cells;
+    frag.appendChild(tr);
+  });
+  tbody.appendChild(frag);
+}
+
+function renderDetalle(rows){
+  const tbody=document.querySelector('#table-detalle tbody');
+  tbody.innerHTML='';
+  const sorted=[...rows].sort((a,b)=>b.fecha.localeCompare(a.fecha)||a.colegio.localeCompare(b.colegio));
+  if(!sorted.length){tbody.innerHTML='<tr><td colspan="7" class="empty">No hay mediciones con los filtros actuales.</td></tr>';return;}
+  const frag=document.createDocumentFragment();
+  sorted.slice(0,600).forEach(r=>{
+    const tr=document.createElement('tr');
+    const ok=r.valor>=0.5;
+    tr.innerHTML=`<td>${r.fecha}</td><td>${r.oficina}</td><td>${r.distrito}</td><td>${r.colegio}</td><td>${r.fuente}</td><td class="val ${ok?'good':'bad'}">${r.valor.toFixed(2)}</td><td style="text-align:center"><span class="pill ${ok?'good':'bad'}">${ok?'Adecuado':'Bajo'}</span></td>`;
+    frag.appendChild(tr);
+  });
+  tbody.appendChild(frag);
+  if(sorted.length>600){const tr=document.createElement('tr');tr.innerHTML=`<td colspan="7" class="empty">Mostrando 600 de ${sorted.length} filas. Refine los filtros para ver más.</td>`;tbody.appendChild(tr);}
+}
+
+function renderKPIs(rows){
+  document.getElementById('kpi-total').textContent=rows.length;
+  const good=rows.filter(r=>r.valor>=0.5).length;
+  const bad=rows.length-good;
+  document.getElementById('kpi-good').textContent=good;
+  document.getElementById('kpi-bad').textContent=bad;
+  const gp=rows.length?(good/rows.length*100).toFixed(0):0;
+  const bp=rows.length?(bad/rows.length*100).toFixed(0):0;
+  document.getElementById('kpi-good-sub').textContent=`≥ 0.5 mg/L · ${gp}%`;
+  document.getElementById('kpi-bad-sub').textContent=`< 0.5 mg/L · ${bp}%`;
+  document.getElementById('kpi-avg').textContent=rows.length?(rows.reduce((s,r)=>s+r.valor,0)/rows.length).toFixed(2):'—';
+  document.getElementById('kpi-colegios').textContent=new Set(rows.map(r=>r.colegio)).size;
+}
+
+function render(){
+  const rows=filtered();
+  renderKPIs(rows);
+  renderChart(rows);
+  renderPivot(rows);
+  renderDetalle(rows);
+}
+
+elOficina.addEventListener('change',()=>{refreshColegios();render()});
+elColegio.addEventListener('change',render);
+elFuente.addEventListener('change',render);
+elEstado.addEventListener('change',render);
+
+document.querySelectorAll('.tab').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-'+btn.dataset.view).classList.add('active');
+    if(btn.dataset.view==='grafico'&&chart)chart.resize();
+  });
+});
+
+render();
+</script>
+</body>
+</html>
